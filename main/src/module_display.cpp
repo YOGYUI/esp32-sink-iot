@@ -121,7 +121,7 @@ static const uint16_t alphafonttable[] = {
 };
 
 bool i2c_write(uint8_t* buffer, size_t buffer_len) {
-    if (i2c_master_write_to_device(0, LED_DISPLAY_SLAVE_ADDR, buffer, buffer_len, 1000 / portTICK_RATE_MS) != ESP_OK) {
+    if (i2c_master_write_to_device((i2c_port_t)0, LED_DISPLAY_SLAVE_ADDR, buffer, buffer_len, 1000 / portTICK_PERIOD_MS) != ESP_OK) {
         // ESP_LOGE(TAG, "Failed to write i2c data");
         return false;
     }
@@ -138,12 +138,12 @@ bool initialize_display() {
     config.scl_pullup_en = true;
     config.master.clk_speed = 400000;
 
-    if (i2c_param_config(0, &config) != ESP_OK) {
+    if (i2c_param_config((i2c_port_t)0, &config) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to config i2c parameters");
         return false;
     }
 
-    if (i2c_driver_install(0, config.mode, 0, 0, 0) != ESP_OK) {
+    if (i2c_driver_install((i2c_port_t)0, config.mode, 0, 0, 0) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to install i2c driver");
         return false;
     }

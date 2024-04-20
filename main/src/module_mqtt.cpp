@@ -157,10 +157,11 @@ static void mqtt_event_handler(void* arg, esp_event_base_t base, int32_t evt_id,
 
 bool initialize_mqtt() {
     esp_mqtt_client_config_t config = {};
-    config.uri = MQTT_BROKER_URI;
-    config.port = MQTT_BROKER_PORT;
-    config.username = MQTT_BROKER_USERNAME;
-    config.password = MQTT_BROKER_PASSWORD;
+    config.broker.address.uri = MQTT_BROKER_URI;
+    config.broker.address.port = MQTT_BROKER_PORT;
+    config.credentials.username = MQTT_BROKER_USERNAME;
+    config.credentials.set_null_client_id = true;
+    config.credentials.authentication.password = MQTT_BROKER_PASSWORD;
 
     mqtt_client = esp_mqtt_client_init(&config);
     if (esp_mqtt_client_register_event(mqtt_client, MQTT_EVENT_ANY, mqtt_event_handler, nullptr) != ESP_OK) {

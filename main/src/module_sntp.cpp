@@ -2,7 +2,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_sntp.h"
-#include "lwip/apps/sntp.h"
+// #include "lwip/apps/sntp.h"
+#include "esp_netif_sntp.h"
 #include "esp_log.h"
 #include "defines.h"
 #include <chrono>
@@ -25,14 +26,17 @@ void callback_time_sync(struct timeval *tv) {
 }
 
 bool initialize_sntp() {
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
-    sntp_set_time_sync_notification_cb(callback_time_sync);
+    // sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    // sntp_setservername(0, "pool.ntp.org");
+    // sntp_set_time_sync_notification_cb(callback_time_sync);
     // sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
-    sntp_set_sync_mode(SNTP_SYNC_MODE_IMMED);
+    // sntp_set_sync_mode(SNTP_SYNC_MODE_IMMED);
 
     ESP_LOGI(TAG, "start time syncronization");
-    sntp_init();
+    // sntp_init();
+    esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("time.windows.com");
+    config.sync_cb = callback_time_sync;
+    esp_netif_sntp_init(&config);
 
     int retry_cnt = 0;
     const int retry_limit = 10;

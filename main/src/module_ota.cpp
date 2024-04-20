@@ -42,7 +42,10 @@ void ota_task(void* pvParameter) {
     config.event_handler = _http_event_handler;
     config.keep_alive_enable = true;
 
-    if (esp_https_ota(&config) == ESP_OK) {
+    esp_https_ota_config_t ota_config = {};
+    ota_config.http_config = &config;
+
+    if (esp_https_ota(&ota_config) == ESP_OK) {
         ESP_LOGI(TAG, "Firmware Updated");
         esp_restart();
     } else {

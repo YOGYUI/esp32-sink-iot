@@ -9,7 +9,7 @@ HW/SW Restrictions
 ---
 1. JATA 풋터치식 전자수전밸브 [JATA-2200](http://www.jata.co.kr/default/02/01.php?com_board_basic=read_form&com_board_idx=12&&com_board_search_code=&com_board_search_value1=&com_board_search_value2=&com_board_page=&&com_board_id=21&&com_board_id=21)
 2. 유량계: Seeed Studio [YF-B2](https://www.seeedstudio.com/Water-Flow-Sensor-YF-B2-p-2879.html)
-3. 개발환경: [ESP-IDF v4.4.2](https://docs.espressif.com/projects/esp-idf/en/v4.4.2/esp32/get-started/index.html) + Visual Studio Code
+3. 개발환경: [ESP-IDF v5.1.2](https://docs.espressif.com/projects/esp-idf/en/v5.1.2/esp32/get-started/index.html) + Visual Studio Code
 
 ⚠MQTT broker 정보는 [defines.h](https://github.com/YOGYUI/esp32-sink-iot/blob/main/main/include/defines.h) 
 에 하드코딩되어 있다. 적절한 값으로 바꾼 후 빌드 및 플래시해야 한다. ️⚠️<br>
