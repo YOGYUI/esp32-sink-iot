@@ -100,6 +100,7 @@ extern "C" void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
+    initialize_mqtt();
     initialize_display();
     initialize_gpio();
     initialize_pulse_counter();

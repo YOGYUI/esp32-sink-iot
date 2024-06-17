@@ -7,6 +7,8 @@ extern "C" {
 #endif
 
 bool initialize_mqtt();
+bool start_mqtt();
+bool stop_mqtt();
 bool mqtt_publish_current_state();
 
 #ifdef __cplusplus

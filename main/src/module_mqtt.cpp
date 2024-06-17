@@ -78,6 +78,8 @@ bool mqtt_publish_current_state() {
         return false;
     }
 
+    cJSON_Delete(obj);
+
     return true;
 }
 
@@ -113,12 +115,14 @@ static void parse_recv_message(const char* payload, size_t payload_len) {
             flow_sensor->auto_off_time = off_time->valueint;
             ESP_LOGI(TAG, "Flow sensor auto off time: %lld sec", flow_sensor->auto_off_time);
         }
+
+        cJSON_Delete(obj);
     }
 }
 
 static void mqtt_event_handler(void* arg, esp_event_base_t base, int32_t evt_id, void* evt_data) {
     esp_mqtt_event_t* event = reinterpret_cast<esp_mqtt_event_t*>(evt_data);
-    // esp_mqtt_client_handle_t client = event->client;
+    esp_mqtt_client_handle_t client = event->client;
     esp_mqtt_event_id_t event_id = (esp_mqtt_event_id_t)evt_id;
     switch (event_id) {
         case MQTT_EVENT_CONNECTED:
@@ -127,7 +131,8 @@ static void mqtt_event_handler(void* arg, esp_event_base_t base, int32_t evt_id,
             mqtt_publish_current_state();
             break;
         case MQTT_EVENT_DISCONNECTED:
-            ESP_LOGE(TAG, "Disconnected");
+            ESP_LOGE(TAG, "Disconnected, Try to reconnect");
+            esp_mqtt_client_reconnect(client);
             break;
         case MQTT_EVENT_SUBSCRIBED:
             ESP_LOGI(TAG, "subscribe event, msg_id=%d", event->msg_id);
@@ -169,12 +174,39 @@ bool initialize_mqtt() {
         return false;
     } 
 
+    ESP_LOGI(TAG, "Initialized MQTT");
+
+    return true;
+}
+
+bool start_mqtt() {
+    if (!mqtt_client) {
+        ESP_LOGE(TAG, "mqtt client is not initialized");
+        return false;
+    }
+
     if (esp_mqtt_client_start(mqtt_client) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start mqtt client");
         return false;
     }
 
-    ESP_LOGI(TAG, "Configured MQTT");
+    ESP_LOGI(TAG, "MQTT Client started");
+
+    return true;
+}
+
+bool stop_mqtt() {
+    if (!mqtt_client) {
+        ESP_LOGE(TAG, "mqtt client is not initialized");
+        return false;
+    }
+
+    if (esp_mqtt_client_stop(mqtt_client) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to stop mqtt client");
+        return false;
+    }
+
+    ESP_LOGI(TAG, "MQTT Client stopped");
 
     return true;
 }

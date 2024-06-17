@@ -18,7 +18,13 @@ static EventGroupHandle_t wifi_event_group;
 static void do_extra_job_after_wifi_connected() {
     turn_led1(ON);
     initialize_sntp();
-    initialize_mqtt();
+    start_mqtt();
+}
+
+static void do_extra_job_after_wifi_disconnected() {
+    turn_led1(OFF);
+    stop_mqtt();
+    esp_wifi_connect();
 }
 
 static void wifi_prov_event_handler(void* arg, esp_event_base_t evt_base, int32_t evt_id, void* evt_data) {
@@ -57,8 +63,7 @@ static void wifi_prov_event_handler(void* arg, esp_event_base_t evt_base, int32_
         xEventGroupSetBits(wifi_event_group, BIT0);
     } else if (evt_base == WIFI_EVENT && evt_id == WIFI_EVENT_STA_DISCONNECTED) {
         ESP_LOGI(TAG, "WI-FI STA Disconnected, Try to connect AP again..");
-        turn_led1(OFF);
-        esp_wifi_connect();
+        do_extra_job_after_wifi_disconnected();
     }
 }
 
