@@ -73,6 +73,7 @@ bool mqtt_publish_current_state() {
     char* payload = cJSON_Print(obj);
     if (payload) {
         esp_mqtt_client_publish(mqtt_client, MQTT_PUBLISH_TOPIC_DEVICE, payload, 0, 1, 0);
+        cJSON_free(payload);
         // ESP_LOGI(TAG, "try to publish (topic: %s, payload: %s)", MQTT_PUBLISH_TOPIC_DEVICE, payload);
     } else {
         return false;
@@ -91,7 +92,11 @@ static void parse_recv_message(const char* payload, size_t payload_len) {
             ESP_LOGE(TAG, "Payload JSON parse error: %s", err);
         }
     } else {
-        ESP_LOGI(TAG, "payload parse result: %s", cJSON_Print(obj));
+        char* payload = cJSON_Print(obj);
+        if (payload) {
+            ESP_LOGI(TAG, "payload parse result: %s", payload);
+            cJSON_free(payload);
+        }
 
         const cJSON* state = cJSON_GetObjectItemCaseSensitive(obj, "state");
         if (cJSON_IsNumber(state)) {
