@@ -31,7 +31,7 @@ bool mqtt_publish_current_state() {
     free_to_publish = false;
     */
 
-   ESP_LOGI(TAG, "current state -  is_active: %d, pulse_count_per_sec: %d, pulse_count_accum: %llu", 
+   ESP_LOGI(TAG, "current state - is_active: %d, pulse_count_per_sec: %d, pulse_count_accum: %llu", 
         flow_sensor->is_active, flow_sensor->pulse_count_per_sec, flow_sensor->pulse_count_accum);
 
     cJSON* obj = cJSON_CreateObject();
@@ -54,7 +54,7 @@ bool mqtt_publish_current_state() {
         cJSON_AddItemToObject(obj, "pulse_cnt_acc", item_pulse_count_acc);
     }
 
-        double volume = (double)flow_sensor->pulse_count_accum / (double)FLOW_SENSOR_PULSE_PER_LITER;
+    double volume = (double)flow_sensor->pulse_count_accum / (double)FLOW_SENSOR_PULSE_PER_LITER;
     cJSON* item_flow_volume = cJSON_CreateNumber(volume);
     if (item_flow_volume) {
         cJSON_AddItemToObject(obj, "volume", item_flow_volume);
@@ -169,10 +169,10 @@ bool initialize_mqtt() {
     esp_mqtt_client_config_t config = {};
     config.broker.address.uri = MQTT_BROKER_URI;
     config.broker.address.port = MQTT_BROKER_PORT;
+    config.credentials.client_id = MQTT_BROKER_CLIENT_ID;
     config.credentials.username = MQTT_BROKER_USERNAME;
-    config.credentials.set_null_client_id = true;
     config.credentials.authentication.password = MQTT_BROKER_PASSWORD;
-
+    
     mqtt_client = esp_mqtt_client_init(&config);
     if (esp_mqtt_client_register_event(mqtt_client, MQTT_EVENT_ANY, mqtt_event_handler, nullptr) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to register mqtt client event");

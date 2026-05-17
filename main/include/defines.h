@@ -15,10 +15,11 @@
 #define GPIO_PIN_PWM_TEST               5
 
 /* define MQTT broker info  */
-#define MQTT_BROKER_URI                 "mqtt://broker_address"
+#define MQTT_BROKER_URI                 "mqtt://{mqtt broker host address}"
 #define MQTT_BROKER_PORT                1883
-#define MQTT_BROKER_USERNAME            "broker_auth_id"
-#define MQTT_BROKER_PASSWORD            "broker_auth_password"
+#define MQTT_BROKER_USERNAME            "{mqtt broker id}"
+#define MQTT_BROKER_PASSWORD            "{mqtt broker password}"
+#define MQTT_BROKER_CLIENT_ID           "esp32-sink-iot"
 
 #define MQTT_PUBLISH_TOPIC_DEVICE       "home/hillstate/sinkvalve/state"
 #define MQTT_SUBSCRIBE_TOPIC_DEVICE     "home/hillstate/sinkvalve/command"
