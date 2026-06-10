@@ -11,16 +11,6 @@ HW/SW Restrictions
 2. 유량계: Seeed Studio [YF-B2](https://www.seeedstudio.com/Water-Flow-Sensor-YF-B2-p-2879.html)
 3. 개발환경: [ESP-IDF v5.1.2](https://docs.espressif.com/projects/esp-idf/en/v5.1.2/esp32/get-started/index.html) + Visual Studio Code
 
-⚠MQTT broker 정보는 [defines.h](https://github.com/YOGYUI/esp32-sink-iot/blob/main/main/include/defines.h) 
-에 하드코딩되어 있다. 적절한 값으로 바꾼 후 빌드 및 플래시해야 한다. ️⚠️<br>
-(파라미터화 및 외부 앱을 통한 변경 기능 추가 계획 없음)
-```c
-#define MQTT_BROKER_URI         "mqtt://broker_address"
-#define MQTT_BROKER_PORT        1883
-#define MQTT_BROKER_USERNAME    "broker_auth_id"
-#define MQTT_BROKER_PASSWORD    "broker_auth_password"
-```
-
 Board Schematics
 ---
 ![schematics.png](./resource/schematics.png) <br><br>
@@ -55,12 +45,7 @@ Core ESP Components
 
 MQTT Commands
 ---
-publish, subscribe를 위한 topic은 모두 [defines.h](https://github.com/YOGYUI/esp32-sink-iot/blob/main/main/include/defines.h) 
-에 정의되어 있다.
-```c
-#define MQTT_PUBLISH_TOPIC_DEVICE       "home/hillstate/sinkvalve/state"
-#define MQTT_SUBSCRIBE_TOPIC_DEVICE     "home/hillstate/sinkvalve/command"
-```
+
 명령 payload는 다음과 같은 json 구조를 가진다
  ```json
 {

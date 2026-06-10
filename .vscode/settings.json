@@ -71,5 +71,24 @@
       "thread": "cpp",
       "typeinfo": "cpp"
     },
+    "ROS2.distro": "iron",
+    "python.autoComplete.extraPaths": [
+      "/home/dennislee/ros2_ws/install/xcore_ros2_interface/lib/python3.10/site-packages",
+      "/home/dennislee/ros2_ws/install/ky_ros_custom_msgs/lib/python3.10/site-packages",
+      "/home/dennislee/ros2_pkgs/install/moveit_task_constructor_core/lib/python3.10/site-packages",
+      "/home/dennislee/ros2_pkgs/install/pymoveit2/lib/python3.10/site-packages",
+      "/home/dennislee/ros2_pkgs/install/moveit_task_constructor_msgs/lib/python3.10/site-packages",
+      "/home/dennislee/ros2_pkgs/install/ethercat_msgs/lib/python3.10/site-packages",
+      "/opt/ros/iron/lib/python3.10/site-packages"
+    ],
+    "python.analysis.extraPaths": [
+      "/home/dennislee/ros2_ws/install/xcore_ros2_interface/lib/python3.10/site-packages",
+      "/home/dennislee/ros2_ws/install/ky_ros_custom_msgs/lib/python3.10/site-packages",
+      "/home/dennislee/ros2_pkgs/install/moveit_task_constructor_core/lib/python3.10/site-packages",
+      "/home/dennislee/ros2_pkgs/install/pymoveit2/lib/python3.10/site-packages",
+      "/home/dennislee/ros2_pkgs/install/moveit_task_constructor_msgs/lib/python3.10/site-packages",
+      "/home/dennislee/ros2_pkgs/install/ethercat_msgs/lib/python3.10/site-packages",
+      "/opt/ros/iron/lib/python3.10/site-packages"
+    ],
   }
   

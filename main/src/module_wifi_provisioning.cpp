@@ -4,194 +4,143 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "wifi_provisioning/manager.h"
-#include "wifi_provisioning/scheme_ble.h"
-#include <cstring>
+#include "wifi_provisioning/scheme_softap.h"
 #include "module_gpio.h"
 #include "module_mqtt.h"
 #include "module_sntp.h"
+#include "module_webserver.h"
 #include "esp_log.h"
 #include "defines.h"
 
 static const char *TAG = "WIFI_PROV";
 static EventGroupHandle_t wifi_event_group;
 
-static void do_extra_job_after_wifi_connected() {
+/* ── Post-connection / post-disconnection hooks ──────────────────────────── */
+
+static void on_wifi_connected() {
     turn_led1(ON);
     initialize_sntp();
     start_mqtt();
+    initialize_webserver();
 }
 
-static void do_extra_job_after_wifi_disconnected() {
+static void on_wifi_disconnected() {
     turn_led1(OFF);
+    stop_webserver();
     stop_mqtt();
     esp_wifi_connect();
 }
 
-static void wifi_prov_event_handler(void* arg, esp_event_base_t evt_base, int32_t evt_id, void* evt_data) {
-    if (evt_base == WIFI_PROV_EVENT) {
-        if (evt_id == WIFI_PROV_INIT) {
-            ESP_LOGI(TAG, "Provisioning Initiated");
-        } else if (evt_id == WIFI_PROV_START) {
-            ESP_LOGI(TAG, "Provisioning Started");
-        } else if (evt_id == WIFI_PROV_CRED_RECV) {
-            wifi_sta_config_t* cfg = reinterpret_cast<wifi_sta_config_t*>(evt_data);
-            ESP_LOGI(TAG, "Received Wi-Fi credentials (SSID=%s, PASSWD=%s)", (const char*)cfg->ssid, (const char*)cfg->password);
-        } else if (evt_id == WIFI_PROV_CRED_FAIL) {
-            wifi_prov_sta_fail_reason_t* reason = reinterpret_cast<wifi_prov_sta_fail_reason_t*>(evt_data);
-            if (*reason == WIFI_PROV_STA_AUTH_ERROR) {
-                ESP_LOGE(TAG, "Failed provisioning (reason: Wi-Fi station authentication failed)");
-            } else {
-                ESP_LOGE(TAG, "Failed provisioning (reason: cannot find access-point)");
-            }
-        } else if (evt_id == WIFI_PROV_CRED_SUCCESS) {
-            ESP_LOGI(TAG, "Provisioning Finished");
-        } else if (evt_id == WIFI_PROV_END) {
-            wifi_prov_mgr_deinit();
-            ESP_LOGI(TAG, "Provisioning terminated");
-        } else if (evt_id == WIFI_PROV_DEINIT) {
-            ESP_LOGI(TAG, "Provisioning deinitialized");
-        } else {
-            ESP_LOGE(TAG, "Unhandled event id - %d", evt_id);
+/* ── Unified event handler ───────────────────────────────────────────────── */
+
+static void event_handler(void *arg, esp_event_base_t base, int32_t id, void *data) {
+    if (base == WIFI_PROV_EVENT) {
+        switch (id) {
+        case WIFI_PROV_INIT:
+            ESP_LOGI(TAG, "Provisioning initialised");
+            break;
+        case WIFI_PROV_START:
+            ESP_LOGI(TAG, "Provisioning started — connect to SoftAP and run esp_prov");
+            break;
+        case WIFI_PROV_CRED_RECV: {
+            wifi_sta_config_t *cfg = reinterpret_cast<wifi_sta_config_t *>(data);
+            ESP_LOGI(TAG, "Credentials received (SSID: %s)", (const char *)cfg->ssid);
+            break;
         }
-    } else if (evt_base == WIFI_EVENT && evt_id == WIFI_EVENT_STA_START) {
-        ESP_LOGI(TAG, "WI-FI STA Started");
+        case WIFI_PROV_CRED_FAIL: {
+            wifi_prov_sta_fail_reason_t *r = reinterpret_cast<wifi_prov_sta_fail_reason_t *>(data);
+            ESP_LOGE(TAG, "Provisioning failed: %s",
+                     *r == WIFI_PROV_STA_AUTH_ERROR ? "auth error" : "AP not found");
+            break;
+        }
+        case WIFI_PROV_CRED_SUCCESS:
+            ESP_LOGI(TAG, "Provisioning succeeded");
+            break;
+        case WIFI_PROV_END:
+            wifi_prov_mgr_deinit();
+            ESP_LOGI(TAG, "Provisioning manager deinitialized");
+            break;
+        default:
+            break;
+        }
+    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_START) {
+        ESP_LOGI(TAG, "Wi-Fi STA started");
         esp_wifi_connect();
-    } else if (evt_base == IP_EVENT && evt_id == IP_EVENT_STA_GOT_IP) {
-        ip_event_got_ip_t* event = reinterpret_cast<ip_event_got_ip_t*>(evt_data);
-        ESP_LOGI(TAG, "Got IP Address: " IPSTR, IP2STR(&event->ip_info.ip));
-        do_extra_job_after_wifi_connected();
+    } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t *ev = reinterpret_cast<ip_event_got_ip_t *>(data);
+        ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&ev->ip_info.ip));
+        on_wifi_connected();
         xEventGroupSetBits(wifi_event_group, BIT0);
-    } else if (evt_base == WIFI_EVENT && evt_id == WIFI_EVENT_STA_DISCONNECTED) {
-        ESP_LOGI(TAG, "WI-FI STA Disconnected, Try to connect AP again..");
-        do_extra_job_after_wifi_disconnected();
+    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
+        ESP_LOGW(TAG, "Wi-Fi STA disconnected, retrying...");
+        on_wifi_disconnected();
     }
 }
 
-esp_err_t prov_data_handler(uint32_t session_id, const uint8_t *inbuf, ssize_t inlen, uint8_t **outbuf, ssize_t *outlen, void *context) {
-    if (inbuf) {
-        ESP_LOGI(TAG, "Received data: %.*s", inlen, (char *)inbuf);
-    }
-
-    char response[] = "SUCCESS";
-    *outbuf = (uint8_t*)strdup(response);
-    if (*outbuf == nullptr) {
-        ESP_LOGE(TAG, "System out of memory");
-        return ESP_ERR_NO_MEM;
-    }
-    *outlen = strlen(response) + 1;
-
-    return ESP_OK;
-}
+/* ── Start SoftAP provisioning ───────────────────────────────────────────── */
 
 static bool start_provisioning() {
-    ESP_LOGI(TAG, "Start Wi-Fi Provisioning");
-
-    // create AP name string
-    char service_name[32] = {};
+    /* SSID = "<prefix><last 3 MAC bytes>"  e.g. "SINK_AABBCC" */
+    char ssid[32] = {};
     uint8_t mac[6];
     esp_wifi_get_mac(WIFI_IF_STA, mac);
-    snprintf(service_name, 32, "%s%02X%02X%02X", BLE_PROV_AP_PREFIX, mac[3], mac[4], mac[5]);
+    snprintf(ssid, sizeof(ssid), "%s%02X%02X%02X",
+             PROV_AP_SSID_PREFIX, mac[3], mac[4], mac[5]);
 
-    uint8_t custom_service_uuid[] = {
-        0xb4, 0xdf, 0x5a, 0x1c, 0x3f, 0x6b, 0xf4, 0xbf,
-        0xea, 0x4a, 0x82, 0x03, 0x04, 0x90, 0x1a, 0x02,
-    };
-    
-    if (wifi_prov_scheme_ble_set_service_uuid(custom_service_uuid) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to set BLE service uuid");
-        return false;
-    }
-    if (wifi_prov_mgr_endpoint_create("yogyui") != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to create custom endpoint");
-        return false;
-    }
-
-    wifi_prov_security_t security = WIFI_PROV_SECURITY_1;
-    const char *service_key = nullptr;  // password
-    if (wifi_prov_mgr_start_provisioning(security, BLE_PROV_POP, service_name, service_key) != ESP_OK) {
+    if (wifi_prov_mgr_start_provisioning(WIFI_PROV_SECURITY_1,
+                                         PROV_POP,
+                                         ssid,
+                                         PROV_SOFTAP_PASSWD) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start provisioning");
         return false;
     }
-    if (wifi_prov_mgr_endpoint_register("yogyui", prov_data_handler, nullptr) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to register endpoint handler");
-        return false;
-    }
 
+    ESP_LOGI(TAG, "SoftAP SSID : %s", ssid);
+    ESP_LOGI(TAG, "POP         : %s", PROV_POP);
+    ESP_LOGI(TAG, "Password    : %s", PROV_SOFTAP_PASSWD);
     return true;
 }
+
+/* ── Public API ──────────────────────────────────────────────────────────── */
 
 bool initialize_wifi_provisioning() {
     turn_led1(OFF);
 
-    // initialize TCP/IP network interface
-    if (esp_netif_init() != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize network interface");
-        return false;
-    }
-
-    // initialize event loop (core 0 loop)
-    if (esp_event_loop_create_default() != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to create event loop");
-        return false;
-    }
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
     wifi_event_group = xEventGroupCreate();
 
-    // register event handler
-    if (esp_event_handler_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, &wifi_prov_event_handler, nullptr) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to register wifi provisioning event");
-        return false;
-    }
-    if (esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_prov_event_handler, nullptr) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to register wifi event");
-        return false;
-    }
-    if (esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_prov_event_handler, nullptr) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to register ip event");
-        return false;
-    }
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID,  &event_handler, nullptr));
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT,      ESP_EVENT_ANY_ID,  &event_handler, nullptr));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT,   IP_EVENT_STA_GOT_IP,    &event_handler, nullptr));
 
-    // initialize WiFi 
+    /* STA netif for normal operation; AP netif for SoftAP provisioning */
     esp_netif_create_default_wifi_sta();
-    wifi_init_config_t init_config = WIFI_INIT_CONFIG_DEFAULT();
-    if (esp_wifi_init(&init_config) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize wifi");
-        return false;
-    }
+    esp_netif_create_default_wifi_ap();
 
-    // config provisioning manager (ble)
-    wifi_prov_mgr_config_t prov_config = {};
-    prov_config.scheme = wifi_prov_scheme_ble;
-    prov_config.scheme_event_handler = WIFI_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM;
-    if (wifi_prov_mgr_init(prov_config) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize wifi provisioning manager");
-        return false;
-    }
+    wifi_init_config_t wifi_cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&wifi_cfg));
 
-    // check provision status
+    wifi_prov_mgr_config_t prov_cfg = {};
+    prov_cfg.scheme               = wifi_prov_scheme_softap;
+    prov_cfg.scheme_event_handler = WIFI_PROV_EVENT_HANDLER_NONE;
+    ESP_ERROR_CHECK(wifi_prov_mgr_init(prov_cfg));
+
     bool is_provisioned = false;
-    if (wifi_prov_mgr_is_provisioned(&is_provisioned) != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to check wifi provision status");
-        return false;
-    }
+    ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&is_provisioned));
 
     if (!is_provisioned) {
+        ESP_LOGI(TAG, "Device not provisioned — starting SoftAP");
         if (!start_provisioning())
             return false;
     } else {
-        ESP_LOGI(TAG, "Already provisioned, starting Wi-Fi STA");
+        ESP_LOGI(TAG, "Already provisioned — connecting to saved AP");
         wifi_prov_mgr_deinit();
-        if (esp_wifi_set_mode(WIFI_MODE_STA) != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to set wifi mode as STA");
-            return false;
-        }
-        if (esp_wifi_start() != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to start wifi");
-            return false;
-        }
+        ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+        ESP_ERROR_CHECK(esp_wifi_start());
     }
 
-    ESP_LOGI(TAG, "Wait for Wi-Fi Connection");
+    ESP_LOGI(TAG, "Waiting for Wi-Fi connection...");
     xEventGroupWaitBits(wifi_event_group, BIT0, false, true, portMAX_DELAY);
-
     return true;
 }

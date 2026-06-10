@@ -9,14 +9,14 @@ static const pcnt_unit_t pcnt_unit = PCNT_UNIT_0;
 bool initialize_pulse_counter() {
     pcnt_config_t config = {};
 
-    config.pulse_gpio_num = GPIO_PIN_FLOW_SENSOR;   // 유량계 펄스 신호 입력핀
+    config.pulse_gpio_num = gpio_cfg->pin_flow;      // 유량계 펄스 신호 입력핀
     
     config.ctrl_gpio_num = 2;                       // Control GPIO (사용하지 않는 핀으로 할당 - floating)
     config.lctrl_mode = PCNT_MODE_REVERSE;          // LOW(gnd)일 경우 cound down
     config.hctrl_mode = PCNT_MODE_KEEP;             // HIGH(floating)일 경우 count Up
 
-    config.pos_mode = PCNT_CHANNEL_EDGE_ACTION_INCREASE;    // 상승엣지에서 카운트 업
-    config.neg_mode = PCNT_CHANNEL_EDGE_ACTION_HOLD;        // 하강엣지에서는 카운트 홀드 (변경 X)
+    config.pos_mode = PCNT_COUNT_INC;    // 상승엣지에서 카운트 업
+    config.neg_mode = PCNT_COUNT_DIS;   // 하강엣지에서는 카운트 홀드 (변경 X)
     config.counter_h_lim = 0x7FFF;                          // 카운터 최대값 리미트
     config.counter_l_lim = 0;                               // 카운터 최소값 리미트
     config.unit = pcnt_unit;

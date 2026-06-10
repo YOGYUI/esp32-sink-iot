@@ -13,6 +13,7 @@
 #include "module_sntp.h"
 #include "module_timer.h"
 #include "module_wifi_provisioning.h"
+#include "module_webserver.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "nvs_flash.h"
@@ -76,6 +77,7 @@ static void timer1_callback(void *arg) {
     }
 
     clear_pulse_counter();
+    webserver_push_state_update();
 }
 
 static void timer2_callback(void *arg) {
@@ -100,6 +102,7 @@ extern "C" void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
+    load_misc_config();
     initialize_mqtt();
     initialize_display();
     initialize_gpio();

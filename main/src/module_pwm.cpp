@@ -19,7 +19,7 @@ bool initialize_pwm() {
     }
 
     ledc_channel_config_t ch_config = {};
-    ch_config.gpio_num = GPIO_PIN_PWM_TEST;
+    ch_config.gpio_num = gpio_cfg->pin_pwm;
     ch_config.speed_mode = LEDC_LOW_SPEED_MODE;
     ch_config.channel = LEDC_CHANNEL_1;
     ch_config.intr_type = LEDC_INTR_DISABLE;

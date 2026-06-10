@@ -1,0 +1,16 @@
+{
+  "name": "sink-iot-dev-server",
+  "version": "1.0.0",
+  "description": "Dev mock server for Sink IoT ESP32 firmware",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

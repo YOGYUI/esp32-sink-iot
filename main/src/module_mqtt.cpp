@@ -4,6 +4,7 @@
 #include "mqtt_client.h"
 #include "esp_log.h"
 #include "defines.h"
+#include "nvs.h"
 #include <cstring>
 #include "cJSON.h"
 #include "module_gpio.h"
@@ -11,14 +12,52 @@
 
 static const char *TAG = "MQTT";
 static esp_mqtt_client_handle_t mqtt_client = nullptr;
+
+static char s_mqtt_uri[128];
+static char s_mqtt_user[64];
+static char s_mqtt_pass[64];
+static char s_mqtt_client_id[64];
+static uint16_t s_mqtt_port;
+static char s_topic_pub[128];
+static char s_topic_sub[128];
+static char s_topic_ota[128];
+
+static void load_mqtt_config() {
+    strncpy(s_mqtt_uri, DEFAULT_MQTT_BROKER_URI, sizeof(s_mqtt_uri) - 1);
+    strncpy(s_mqtt_user, DEFAULT_MQTT_BROKER_USERNAME, sizeof(s_mqtt_user) - 1);
+    strncpy(s_mqtt_pass, DEFAULT_MQTT_BROKER_PASSWORD, sizeof(s_mqtt_pass) - 1);
+    strncpy(s_mqtt_client_id, DEFAULT_MQTT_BROKER_CLIENT_ID, sizeof(s_mqtt_client_id) - 1);
+    strncpy(s_topic_pub, DEFAULT_MQTT_PUBLISH_TOPIC_DEVICE, sizeof(s_topic_pub) - 1);
+    strncpy(s_topic_sub, DEFAULT_MQTT_SUBSCRIBE_TOPIC_DEVICE, sizeof(s_topic_sub) - 1);
+    strncpy(s_topic_ota, DEFAULT_MQTT_SUBSCRIBE_TOPIC_OTA, sizeof(s_topic_ota) - 1);
+    s_mqtt_port = DEFAULT_MQTT_BROKER_PORT;
+
+    nvs_handle_t nvs;
+    if (nvs_open(NVS_NAMESPACE_CFG, NVS_READONLY, &nvs) != ESP_OK)
+        return;
+
+    size_t len;
+    len = sizeof(s_mqtt_uri);       nvs_get_str(nvs, NVS_KEY_MQTT_URI,       s_mqtt_uri,       &len);
+    len = sizeof(s_mqtt_user);      nvs_get_str(nvs, NVS_KEY_MQTT_USER,      s_mqtt_user,      &len);
+    len = sizeof(s_mqtt_pass);      nvs_get_str(nvs, NVS_KEY_MQTT_PASS,      s_mqtt_pass,      &len);
+    len = sizeof(s_mqtt_client_id); nvs_get_str(nvs, NVS_KEY_MQTT_CLIENT_ID, s_mqtt_client_id, &len);
+    len = sizeof(s_topic_pub);      nvs_get_str(nvs, NVS_KEY_MQTT_TOPIC_PUB, s_topic_pub,      &len);
+    len = sizeof(s_topic_sub);      nvs_get_str(nvs, NVS_KEY_MQTT_TOPIC_SUB, s_topic_sub,      &len);
+    len = sizeof(s_topic_ota);      nvs_get_str(nvs, NVS_KEY_MQTT_TOPIC_OTA, s_topic_ota,      &len);
+    nvs_get_u16(nvs, NVS_KEY_MQTT_PORT, &s_mqtt_port);
+    nvs_close(nvs);
+
+    ESP_LOGI(TAG, "MQTT: uri=%s port=%d user=%s", s_mqtt_uri, s_mqtt_port, s_mqtt_user);
+    ESP_LOGI(TAG, "MQTT topics: pub=%s sub=%s ota=%s", s_topic_pub, s_topic_sub, s_topic_ota);
+}
 // static bool free_to_publish = true;
 
 static void subscribe_topics() {
     int msg_id;
-    msg_id = esp_mqtt_client_subscribe(mqtt_client, MQTT_SUBSCRIBE_TOPIC_DEVICE, 0);
-    ESP_LOGI(TAG, "sent subscribe, msg_id=%d", msg_id);
-    msg_id = esp_mqtt_client_subscribe(mqtt_client, MQTT_SUBSCRIBE_TOPIC_OTA, 0);
-    ESP_LOGI(TAG, "sent subscribe, msg_id=%d", msg_id);
+    msg_id = esp_mqtt_client_subscribe(mqtt_client, s_topic_sub, 0);
+    ESP_LOGI(TAG, "sent subscribe (cmd), msg_id=%d", msg_id);
+    msg_id = esp_mqtt_client_subscribe(mqtt_client, s_topic_ota, 0);
+    ESP_LOGI(TAG, "sent subscribe (ota), msg_id=%d", msg_id);
 }
 
 bool mqtt_publish_current_state() {
@@ -43,7 +82,7 @@ bool mqtt_publish_current_state() {
         cJSON_AddItemToObject(obj, "state", item_state);
     }
 
-    double flow_rate = (double)flow_sensor->pulse_count_per_sec / (double)FLOW_SENSOR_PULSE_PER_LITER;    // unit: L/sec 
+    double flow_rate = (double)flow_sensor->pulse_count_per_sec / (double)misc_cfg->flow_pulse_per_liter;    // unit: L/sec 
     cJSON* item_flow_rate = cJSON_CreateNumber(flow_rate);
     if (item_flow_rate) {
         cJSON_AddItemToObject(obj, "flow_rate", item_flow_rate);
@@ -54,7 +93,7 @@ bool mqtt_publish_current_state() {
         cJSON_AddItemToObject(obj, "pulse_cnt_acc", item_pulse_count_acc);
     }
 
-    double volume = (double)flow_sensor->pulse_count_accum / (double)FLOW_SENSOR_PULSE_PER_LITER;
+    double volume = (double)flow_sensor->pulse_count_accum / (double)misc_cfg->flow_pulse_per_liter;
     cJSON* item_flow_volume = cJSON_CreateNumber(volume);
     if (item_flow_volume) {
         cJSON_AddItemToObject(obj, "volume", item_flow_volume);
@@ -72,9 +111,8 @@ bool mqtt_publish_current_state() {
 
     char* payload = cJSON_Print(obj);
     if (payload) {
-        esp_mqtt_client_publish(mqtt_client, MQTT_PUBLISH_TOPIC_DEVICE, payload, 0, 1, 0);
+        esp_mqtt_client_publish(mqtt_client, s_topic_pub, payload, 0, 1, 0);
         cJSON_free(payload);
-        // ESP_LOGI(TAG, "try to publish (topic: %s, payload: %s)", MQTT_PUBLISH_TOPIC_DEVICE, payload);
     } else {
         return false;
     }
@@ -150,9 +188,9 @@ static void mqtt_event_handler(void* arg, esp_event_base_t base, int32_t evt_id,
             break;
         case MQTT_EVENT_DATA:
             ESP_LOGI(TAG, "message arrived [%.*s] %.*s", event->topic_len, event->topic, event->data_len, event->data);
-            if (!strncmp(event->topic, MQTT_SUBSCRIBE_TOPIC_DEVICE, strlen(MQTT_SUBSCRIBE_TOPIC_DEVICE))) {
+            if (!strncmp(event->topic, s_topic_sub, strlen(s_topic_sub))) {
                 parse_recv_message(event->data, event->data_len);
-            } else if (!strncmp(event->topic, MQTT_SUBSCRIBE_TOPIC_OTA, strlen(MQTT_SUBSCRIBE_TOPIC_OTA))) {
+            } else if (!strncmp(event->topic, s_topic_ota, strlen(s_topic_ota))) {
                 initialize_ota();
             }
             break;
@@ -166,12 +204,14 @@ static void mqtt_event_handler(void* arg, esp_event_base_t base, int32_t evt_id,
 }
 
 bool initialize_mqtt() {
+    load_mqtt_config();
+
     esp_mqtt_client_config_t config = {};
-    config.broker.address.uri = MQTT_BROKER_URI;
-    config.broker.address.port = MQTT_BROKER_PORT;
-    config.credentials.client_id = MQTT_BROKER_CLIENT_ID;
-    config.credentials.username = MQTT_BROKER_USERNAME;
-    config.credentials.authentication.password = MQTT_BROKER_PASSWORD;
+    config.broker.address.uri = s_mqtt_uri;
+    config.broker.address.port = s_mqtt_port;
+    config.credentials.client_id = s_mqtt_client_id;
+    config.credentials.username = s_mqtt_user;
+    config.credentials.authentication.password = s_mqtt_pass;
     
     mqtt_client = esp_mqtt_client_init(&config);
     if (esp_mqtt_client_register_event(mqtt_client, MQTT_EVENT_ANY, mqtt_event_handler, nullptr) != ESP_OK) {

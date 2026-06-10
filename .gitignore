@@ -2,5 +2,5 @@
 *.old
 /.idea/
 /cmake-build-*/
-/test/
+test/node_modules/
 sdkconfig
