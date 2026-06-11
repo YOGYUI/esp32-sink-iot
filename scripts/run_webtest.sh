@@ -4,7 +4,10 @@
 #   --dev        : use nodemon (auto-restart on file change)
 #   --port <N>   : listen port (default: 3000)
 
-set -euo pipefail
+set -uo pipefail
+
+ORIG_DIR="$PWD"
+trap 'cd "$ORIG_DIR"' EXIT
 
 # ── Resolve project root from script location ────────────────────────────────
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -58,12 +61,19 @@ echo ""
 # ── Launch ───────────────────────────────────────────────────────────────────
 cd "$TEST_DIR"
 
+# Ctrl+C terminates node/nodemon but not this shell, so the terminal stays open
+trap '' INT
+
 if $USE_DEV; then
     if ! command -v npx &>/dev/null; then
         echo "[ERROR] npx is not available"
         exit 1
     fi
-    exec npx nodemon server.js "$PORT"
+    npx nodemon server.js "$PORT" || true
 else
-    exec node server.js "$PORT"
+    node server.js "$PORT" || true
 fi
+
+echo ""
+echo "[INFO] 서버가 종료되었습니다. (복귀: $ORIG_DIR)"
+cd "$ORIG_DIR"

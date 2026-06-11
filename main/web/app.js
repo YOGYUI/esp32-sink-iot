@@ -23,6 +23,7 @@ function updateStatus(d) {
     document.getElementById('ps').textContent = d.pulse_per_sec;
     document.getElementById('pa').textContent = d.pulse_accum;
     document.getElementById('vl').textContent = (d.pulse_accum / PULSE_PER_LITER).toFixed(3);
+    document.getElementById('relay-btn').textContent = d.flow_active ? '닫기' : '열기';
 }
 
 /* ── WebSocket ──────────────────────────────────────────────────────────── */
@@ -43,6 +44,10 @@ function connectWS() {
                 if (d.flow_active) {
                     addLog('유량: ' + d.pulse_per_sec + ' 펄스/초', 'lf');
                 }
+            } else if (d.type === 'wifi') {
+                updateWifiStatus(d);
+                if (d.connected) addLog('WiFi 연결됨: ' + d.ssid + ' (' + d.ip + ')', 'lf');
+                else             addLog('WiFi 연결 해제됨', 'ls');
             }
         } catch (_) {}
     };
@@ -70,7 +75,7 @@ async function apiPost(url, body) {
 async function toggleRelay() {
     try {
         const d = await apiPost('/api/relay/toggle', {});
-        addLog('릴레이 토글: ' + (d.ok ? 'OK' : 'FAIL'));
+        addLog('릴레이 토글: ' + (d.ok ? 'OK' : 'FAIL'), d.ok ? 'lf' : 'lerr');
     } catch (e) {
         addLog('릴레이 오류: ' + e.message, 'lerr');
     }
@@ -216,6 +221,112 @@ async function saveMisc() {
     }
 }
 
+/* ── WiFi ────────────────────────────────────────────────────────────────── */
+
+function updateWifiStatus(d) {
+    // 와이파이 설정 탭 상태 표시
+    const dot  = document.getElementById('wd');
+    const lbl  = document.getElementById('wifi-ssid-lbl');
+    const ip   = document.getElementById('wifi-ip-lbl');
+    dot.className = d.connected ? 'dot on' : 'dot';
+    lbl.textContent = d.connected ? d.ssid : '연결 안됨';
+    ip.textContent  = d.connected ? d.ip   : '';
+    if (d.connected && d.ssid)
+        document.getElementById('wifi-ssid-in').value = d.ssid;
+
+    // 기기 현재 상태 탭 뱃지 동기화
+    const bdot = document.getElementById('wd-s');
+    const bssid = document.getElementById('wifi-badge-ssid');
+    const bip   = document.getElementById('wifi-badge-ip');
+    bdot.className = d.connected ? 'dot on' : 'dot';
+    bssid.textContent = d.connected ? d.ssid : 'WiFi 연결 안됨';
+    bip.textContent   = d.connected ? d.ip   : '';
+}
+
+async function loadWifiStatus() {
+    try {
+        const d = await (await fetch('/api/wifi/status')).json();
+        updateWifiStatus(d);
+    } catch (_) {}
+}
+
+function rssiBar(rssi) {
+    if (rssi > -50) return '▂▄▆█';
+    if (rssi > -60) return '▂▄▆░';
+    if (rssi > -70) return '▂▄░░';
+    return '▂░░░';
+}
+
+function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function scanWifi() {
+    const btn  = document.getElementById('scan-btn');
+    const list = document.getElementById('ap-list');
+    btn.disabled = true;
+    btn.textContent = '검색 중...';
+    list.style.display = 'block';
+    list.innerHTML = '<div style="padding:10px;color:#64748b;font-size:.8rem;text-align:center">스캔 중...</div>';
+
+    try {
+        const d = await (await fetch('/api/wifi/scan')).json();
+        const aps = d.aps || [];
+        if (aps.length === 0) {
+            list.innerHTML = '<div style="padding:10px;color:#64748b;font-size:.8rem;text-align:center">검색된 AP 없음</div>';
+        } else {
+            list.innerHTML = '';
+            aps.forEach(ap => {
+                const item = document.createElement('div');
+                item.className = 'ap-item';
+                item.innerHTML =
+                    `<span class="ap-name">${escHtml(ap.ssid)}</span>` +
+                    `<span class="ap-rssi">${ap.rssi} dBm</span>` +
+                    `<span class="ap-sig">${rssiBar(ap.rssi)}</span>` +
+                    `<span class="ap-lock">${ap.auth !== 0 ? '🔒' : '🔓'}</span>`;
+                item.onclick = () => {
+                    document.getElementById('wifi-ssid-in').value = ap.ssid;
+                    document.getElementById('wifi-pass-in').value = '';
+                    document.getElementById('wifi-pass-in').focus();
+                };
+                list.appendChild(item);
+            });
+        }
+    } catch (e) {
+        list.innerHTML = '<div style="padding:10px;color:#fb923c;font-size:.8rem;text-align:center">검색 실패</div>';
+        addLog('WiFi 검색 오류: ' + e.message, 'lerr');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'AP 검색';
+    }
+}
+
+async function connectWifi() {
+    const ssid = document.getElementById('wifi-ssid-in').value.trim();
+    const pass = document.getElementById('wifi-pass-in').value;
+    if (!ssid) { addLog('SSID를 입력해 주세요', 'lerr'); return; }
+    try {
+        const d = await apiPost('/api/wifi/connect', { ssid, password: pass });
+        if (d.ok) {
+            addLog('WiFi 연결 시도 중: ' + ssid, 'lf');
+            setTimeout(loadWifiStatus, 6000);
+        }
+    } catch (e) {
+        addLog('WiFi 연결 오류: ' + e.message, 'lerr');
+    }
+}
+
+async function forgetWifi() {
+    if (!confirm('WiFi 연결을 해제하고 저장된 인증정보를 삭제하시겠습니까?')) return;
+    try {
+        await apiPost('/api/wifi/forget', {});
+        addLog('WiFi 연결 해제됨', 'ls');
+        updateWifiStatus({ connected: false });
+    } catch (e) {
+        addLog('WiFi 해제 오류: ' + e.message, 'lerr');
+    }
+}
+
 /* ── Polling fallback (when WS is disconnected) ─────────────────────────── */
 setInterval(async () => {
     if (ws && ws.readyState === WebSocket.OPEN) return;
@@ -225,9 +336,18 @@ setInterval(async () => {
     } catch (_) {}
 }, 5000);
 
+/* ── Tab switching ───────────────────────────────────────────────────────── */
+function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab-panel').forEach(p =>
+        p.classList.toggle('active', p.dataset.tab === name));
+}
+
 /* ── Init ───────────────────────────────────────────────────────────────── */
 connectWS();
 loadConfig();
 loadGPIO();
 loadTopics();
 loadMisc();
+loadWifiStatus();

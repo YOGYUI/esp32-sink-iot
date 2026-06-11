@@ -58,6 +58,19 @@ const topicCfg = {
     topic_ota: 'home/hillstate/sinkvalve/ota',
 };
 
+const wifiState = {
+    connected: true,
+    ssid: 'HomeNetwork',
+    ip:   '192.168.1.100',
+};
+
+const mockAPs = [
+    { ssid: 'HomeNetwork',  rssi: -42, auth: 3 },
+    { ssid: 'Neighbor_5G',  rssi: -65, auth: 3 },
+    { ssid: 'CoffeeShop',   rssi: -71, auth: 0 },
+    { ssid: 'AndroidAP_EE', rssi: -78, auth: 4 },
+];
+
 const sensor = {
     flow_active:    false,
     pulse_per_sec:  0,
@@ -160,7 +173,7 @@ async function route(req, res) {
     if (meth === 'POST' && urlPath === '/api/relay/toggle') {
         sensor.flow_active = !sensor.flow_active;
         if (!sensor.flow_active) sensor.pulse_per_sec = 0;
-        log('[RELAY]', `Toggled → flow_active=${sensor.flow_active}`, 'yellow');
+        log('[RELAY]', 'Toggle → flow_active=' + sensor.flow_active, sensor.flow_active ? 'green' : 'yellow');
         sendJson({ ok: true });
         return;
     }
@@ -253,6 +266,45 @@ async function route(req, res) {
         } catch {
             sendJson({ ok: false, error: 'Invalid JSON' }, 400);
         }
+        return;
+    }
+
+    // GET /api/wifi/status
+    if (meth === 'GET' && urlPath === '/api/wifi/status') {
+        sendJson({ ...wifiState });
+        return;
+    }
+
+    // GET /api/wifi/scan
+    if (meth === 'GET' && urlPath === '/api/wifi/scan') {
+        await new Promise(r => setTimeout(r, 1200));  // simulate scan delay
+        sendJson({ aps: mockAPs });
+        return;
+    }
+
+    // POST /api/wifi/connect
+    if (meth === 'POST' && urlPath === '/api/wifi/connect') {
+        try {
+            const body = JSON.parse(await readBody(req));
+            if (!body.ssid) { sendJson({ ok: false, error: 'ssid required' }, 400); return; }
+            wifiState.ssid      = body.ssid;
+            wifiState.connected = true;
+            wifiState.ip        = '192.168.1.' + (100 + Math.floor(Math.random() * 50));
+            log('[WiFi]', `Connecting to: ${body.ssid} → ${wifiState.ip}`, 'yellow');
+            sendJson({ ok: true });
+        } catch {
+            sendJson({ ok: false, error: 'Invalid JSON' }, 400);
+        }
+        return;
+    }
+
+    // POST /api/wifi/forget
+    if (meth === 'POST' && urlPath === '/api/wifi/forget') {
+        wifiState.connected = false;
+        wifiState.ssid      = '';
+        wifiState.ip        = '';
+        log('[WiFi]', 'Credentials forgotten', 'red');
+        sendJson({ ok: true });
         return;
     }
 

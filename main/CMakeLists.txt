@@ -17,7 +17,6 @@ idf_component_register(
         nvs_flash
         json
         spiffs
-        wifi_provisioning
         esp_wifi
         esp_event
         esp_netif

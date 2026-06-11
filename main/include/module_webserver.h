@@ -9,6 +9,7 @@ extern "C" {
 bool initialize_webserver();
 void stop_webserver();
 void webserver_push_state_update();
+void webserver_push_wifi_update();
 
 #ifdef __cplusplus
 }

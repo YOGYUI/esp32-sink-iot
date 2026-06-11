@@ -4,6 +4,38 @@
     padding: 0;
 }
 
+/* ── Tab bar ──────────────────────────────────── */
+.tab-bar {
+    display: flex;
+    gap: 4px;
+    background: #1e293b;
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 12px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 8px 2px;
+    border: none;
+    border-radius: 7px;
+    font-size: .68rem;
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+    background: transparent;
+    color: #64748b;
+    transition: background .15s, color .15s;
+    word-break: keep-all;
+}
+
+.tab-btn:hover   { color: #cbd5e1; }
+.tab-btn.active  { background: #38bdf8; color: #0f172a; }
+
+/* ── Tab panels ───────────────────────────────── */
+.tab-panel          { display: none; }
+.tab-panel.active   { display: block; }
+
 body {
     font-family: sans-serif;
     background: #0f172a;
@@ -157,3 +189,75 @@ h1 {
 .le.lf      { color: #22c55e; }
 .le.ls      { color: #f43f5e; }
 .le.lerr    { color: #fb923c; }
+
+/* ── WiFi status badge (기기 현재 상태 탭) ───── */
+.wifi-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #0f172a;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+    font-size: .75rem;
+    color: #94a3b8;
+}
+
+.wifi-badge-ip {
+    margin-left: auto;
+    font-family: monospace;
+    font-size: .7rem;
+    color: #64748b;
+}
+
+/* ── WiFi card ────────────────────────────────── */
+.wifi-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: .875rem;
+    color: #e2e8f0;
+}
+
+.wifi-ip {
+    margin-left: auto;
+    font-size: .72rem;
+    color: #64748b;
+    font-family: monospace;
+}
+
+.ap-list {
+    background: #0f172a;
+    border-radius: 6px;
+    margin: 8px 0;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.ap-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    gap: 8px;
+    cursor: pointer;
+    border-bottom: 1px solid #1e293b;
+    font-size: .82rem;
+    transition: background .1s;
+}
+
+.ap-item:last-child { border-bottom: none; }
+.ap-item:hover      { background: #1e293b; }
+
+.ap-item .ap-name   { flex: 1; color: #e2e8f0; }
+.ap-item .ap-rssi   { font-size: .68rem; color: #64748b; font-family: monospace; }
+.ap-item .ap-sig    { font-size: .72rem; color: #38bdf8; letter-spacing: -.05em; }
+.ap-item .ap-lock   { font-size: .72rem; color: #94a3b8; }
+
+.btn-gray { background: #475569; color: #fff; }
+
+.wifi-btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}

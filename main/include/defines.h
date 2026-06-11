@@ -56,6 +56,8 @@
 #define NVS_KEY_MISC_RELAY_MS   "misc_relay_ms"
 #define NVS_KEY_MISC_FLOW_PPL   "misc_flow_ppl"
 #define NVS_KEY_MISC_DISP_ADDR  "misc_disp_addr"
+#define NVS_KEY_WIFI_SSID       "wifi_ssid"
+#define NVS_KEY_WIFI_PASS       "wifi_pass"
 
 /* GPIO pin configuration (runtime, loaded from NVS on boot) */
 struct StGpioConfig {

@@ -3,10 +3,12 @@
 #include "esp_spiffs.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "esp_wifi.h"
 #include "cJSON.h"
 #include "nvs.h"
 #include "defines.h"
 #include "module_gpio.h"
+#include "module_wifi_provisioning.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -181,6 +183,10 @@ static esp_err_t h_css(httpd_req_t *req) {
 
 static esp_err_t h_js(httpd_req_t *req) {
     return serve_file(req, SPIFFS_BASE_PATH "/app.js", "application/javascript");
+}
+
+static esp_err_t h_favicon(httpd_req_t *req) {
+    return serve_file(req, SPIFFS_BASE_PATH "/favicon.svg", "image/svg+xml");
 }
 
 static esp_err_t h_status(httpd_req_t *req) {
@@ -539,6 +545,115 @@ static esp_err_t h_config_topic_post(httpd_req_t *req) {
     return ESP_OK;
 }
 
+/* ── WiFi API handlers ───────────────────────────────────────────────────── */
+
+static esp_err_t h_wifi_status(httpd_req_t *req) {
+    char ssid[33] = {}, ip[16] = {};
+    bool connected = wifi_get_sta_status(ssid, ip);
+
+    cJSON *obj = cJSON_CreateObject();
+    if (!obj) return ESP_FAIL;
+    cJSON_AddBoolToObject(obj,   "connected", connected);
+    cJSON_AddStringToObject(obj, "ssid",      ssid);
+    cJSON_AddStringToObject(obj, "ip",        ip);
+
+    char *json = cJSON_PrintUnformatted(obj);
+    cJSON_Delete(obj);
+    if (!json) return ESP_FAIL;
+    esp_err_t ret = send_json(req, json);
+    cJSON_free(json);
+    return ret;
+}
+
+static esp_err_t h_wifi_scan(httpd_req_t *req) {
+    wifi_scan_config_t scan_cfg = {};
+    scan_cfg.scan_type = WIFI_SCAN_TYPE_ACTIVE;
+
+    esp_err_t err = esp_wifi_scan_start(&scan_cfg, true);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "WiFi scan failed: %s", esp_err_to_name(err));
+        return send_json(req, "{\"aps\":[],\"error\":\"scan failed\"}");
+    }
+
+    uint16_t count = 0;
+    esp_wifi_scan_get_ap_num(&count);
+    if (count == 0) {
+        return send_json(req, "{\"aps\":[]}");
+    }
+    if (count > 20) count = 20;
+
+    wifi_ap_record_t *records = (wifi_ap_record_t *)malloc(count * sizeof(wifi_ap_record_t));
+    if (!records) return ESP_ERR_NO_MEM;
+
+    esp_wifi_scan_get_ap_records(&count, records);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON *aps  = cJSON_CreateArray();
+
+    for (int i = 0; i < count; i++) {
+        if (records[i].ssid[0] == '\0') continue;
+        cJSON *ap = cJSON_CreateObject();
+        cJSON_AddStringToObject(ap, "ssid", (char *)records[i].ssid);
+        cJSON_AddNumberToObject(ap, "rssi", records[i].rssi);
+        cJSON_AddNumberToObject(ap, "auth", records[i].authmode);
+        cJSON_AddItemToArray(aps, ap);
+    }
+
+    free(records);
+    cJSON_AddItemToObject(root, "aps", aps);
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return ESP_FAIL;
+    esp_err_t ret = send_json(req, json);
+    cJSON_free(json);
+    return ret;
+}
+
+static esp_err_t h_wifi_connect(httpd_req_t *req) {
+    char *body = read_body(req);
+    if (!body) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Bad request");
+        return ESP_FAIL;
+    }
+
+    cJSON *obj = cJSON_Parse(body);
+    free(body);
+    if (!obj) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return ESP_FAIL;
+    }
+
+    const cJSON *ssid = cJSON_GetObjectItemCaseSensitive(obj, "ssid");
+    const cJSON *pass = cJSON_GetObjectItemCaseSensitive(obj, "password");
+
+    if (!cJSON_IsString(ssid) || !ssid->valuestring || !ssid->valuestring[0]) {
+        cJSON_Delete(obj);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "ssid required");
+        return ESP_FAIL;
+    }
+
+    const char *password = (cJSON_IsString(pass) && pass->valuestring) ? pass->valuestring : "";
+
+    /* Save credentials to NVS */
+    nvs_handle_t nvs;
+    if (nvs_open(NVS_NAMESPACE_CFG, NVS_READWRITE, &nvs) == ESP_OK) {
+        nvs_set_str(nvs, NVS_KEY_WIFI_SSID, ssid->valuestring);
+        nvs_set_str(nvs, NVS_KEY_WIFI_PASS, password);
+        nvs_commit(nvs);
+        nvs_close(nvs);
+    }
+
+    wifi_do_connect(ssid->valuestring, password);
+    cJSON_Delete(obj);
+    return send_json(req, "{\"ok\":true}");
+}
+
+static esp_err_t h_wifi_forget(httpd_req_t *req) {
+    wifi_do_forget();
+    return send_json(req, "{\"ok\":true}");
+}
+
 static esp_err_t h_ws(httpd_req_t *req) {
     if (req->method == HTTP_GET) {
         /* Initial WebSocket handshake */
@@ -581,6 +696,11 @@ static void reg(httpd_handle_t srv, const char *uri, httpd_method_t method,
 /* ── Public API ──────────────────────────────────────────────────────────── */
 
 bool initialize_webserver() {
+    if (g_server) {
+        ESP_LOGI(TAG, "HTTP server already running");
+        return true;
+    }
+
     if (!g_ws_mutex) {
         g_ws_mutex = xSemaphoreCreateMutex();
         if (!g_ws_mutex) {
@@ -605,8 +725,9 @@ bool initialize_webserver() {
     }
 
     httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
-    cfg.stack_size      = 8192;
+    cfg.stack_size       = 8192;
     cfg.max_open_sockets = 7;
+    cfg.max_uri_handlers = 24;
 
     if (httpd_start(&g_server, &cfg) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start HTTP server");
@@ -614,6 +735,7 @@ bool initialize_webserver() {
     }
 
     reg(g_server, "/",                   HTTP_GET,  h_root);
+    reg(g_server, "/favicon.svg",        HTTP_GET,  h_favicon);
     reg(g_server, "/app.css",            HTTP_GET,  h_css);
     reg(g_server, "/app.js",             HTTP_GET,  h_js);
     reg(g_server, "/api/status",         HTTP_GET,  h_status);
@@ -627,6 +749,10 @@ bool initialize_webserver() {
     reg(g_server, "/api/config/topic",   HTTP_POST, h_config_topic_post);
     reg(g_server, "/api/config/misc",    HTTP_GET,  h_config_misc_get);
     reg(g_server, "/api/config/misc",    HTTP_POST, h_config_misc_post);
+    reg(g_server, "/api/wifi/status",    HTTP_GET,  h_wifi_status);
+    reg(g_server, "/api/wifi/scan",      HTTP_GET,  h_wifi_scan);
+    reg(g_server, "/api/wifi/connect",   HTTP_POST, h_wifi_connect);
+    reg(g_server, "/api/wifi/forget",    HTTP_POST, h_wifi_forget);
     reg(g_server, "/ws",                 HTTP_GET,  h_ws, true);
 
     ESP_LOGI(TAG, "HTTP server started on port %d", cfg.server_port);
@@ -642,6 +768,32 @@ void stop_webserver() {
     xSemaphoreGive(g_ws_mutex);
     unmount_spiffs();
     ESP_LOGI(TAG, "HTTP server stopped");
+}
+
+void webserver_push_wifi_update() {
+    if (!g_server) return;
+
+    xSemaphoreTake(g_ws_mutex, portMAX_DELAY);
+    bool has_clients = (g_ws_count > 0);
+    xSemaphoreGive(g_ws_mutex);
+    if (!has_clients) return;
+
+    char ssid[33] = {}, ip[16] = {};
+    bool connected = wifi_get_sta_status(ssid, ip);
+
+    cJSON *obj = cJSON_CreateObject();
+    if (!obj) return;
+    cJSON_AddStringToObject(obj, "type",      "wifi");
+    cJSON_AddBoolToObject(obj,   "connected", connected);
+    cJSON_AddStringToObject(obj, "ssid",      ssid);
+    cJSON_AddStringToObject(obj, "ip",        ip);
+
+    char *payload = cJSON_PrintUnformatted(obj);
+    cJSON_Delete(obj);
+    if (!payload) return;
+
+    if (httpd_queue_work(g_server, ws_broadcast_work, payload) != ESP_OK)
+        free(payload);
 }
 
 void webserver_push_state_update() {

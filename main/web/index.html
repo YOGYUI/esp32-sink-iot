@@ -3,141 +3,197 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sink IoT</title>
+    <title>YOGYUI Sink Valve IoT Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="stylesheet" href="/app.css">
 </head>
 <body>
-    <h1>Sink IoT Dashboard</h1>
+    <h1><img src="/favicon.svg" style="height:1.2em;vertical-align:middle;margin-right:8px">YOGYUI Sink Valve IoT</h1>
 
-    <div class="card">
-        <h2><span class="dot" id="wsd"></span>실시간 상태</h2>
-        <div class="grid">
-            <div class="stat">
-                <div class="lbl">유량</div>
-                <div class="val stop" id="fs">-</div>
-            </div>
-            <div class="stat">
-                <div class="lbl">펄스/초</div>
-                <div class="val" id="ps">-</div>
-            </div>
-            <div class="stat">
-                <div class="lbl">누적 펄스</div>
-                <div class="val" id="pa">-</div>
-            </div>
-            <div class="stat">
-                <div class="lbl">사용량 (L)</div>
-                <div class="val" id="vl">-</div>
-            </div>
-        </div>
+    <div class="tab-bar">
+        <button class="tab-btn active" data-tab="status"   onclick="switchTab('status')"  >기기 현재 상태</button>
+        <button class="tab-btn"        data-tab="wifi"     onclick="switchTab('wifi')"     >와이파이 설정</button>
+        <button class="tab-btn"        data-tab="mqtt"     onclick="switchTab('mqtt')"     >MQTT 설정</button>
+        <button class="tab-btn"        data-tab="hardware" onclick="switchTab('hardware')" >하드웨어 설정</button>
     </div>
 
-    <div class="card">
-        <h2>밸브 제어</h2>
-        <button class="btn btn-blue" onclick="toggleRelay()">릴레이 토글</button>
-    </div>
+    <!-- ── 기기 현재 상태 ──────────────────────────────────────── -->
+    <div class="tab-panel active" data-tab="status">
 
-    <div class="card">
-        <h2>자동 절수 설정</h2>
-        <div class="ck">
-            <input type="checkbox" id="aoe">
-            <label for="aoe">자동 절수 활성화</label>
-        </div>
-        <div class="row">
-            <label for="aot">절수 시간 (초)</label>
-            <input type="number" id="aot" min="1" max="3600" placeholder="5">
-        </div>
-        <button class="btn btn-green" onclick="saveAO()">즉시 적용</button>
-    </div>
-
-    <div class="card">
-        <h2>GPIO 핀 설정 <small>(저장 시 재시작)</small></h2>
-        <div class="grid">
-            <div class="row">
-                <label for="gp-relay">릴레이 핀</label>
-                <input type="number" id="gp-relay" min="0" max="39" placeholder="16">
+        <div class="card">
+            <h2><span class="dot" id="wsd"></span>실시간 상태</h2>
+            <div class="wifi-badge" id="wifi-badge">
+                <span class="dot" id="wd-s"></span>
+                <span id="wifi-badge-ssid">WiFi 연결 안됨</span>
+                <span class="wifi-badge-ip" id="wifi-badge-ip"></span>
             </div>
-            <div class="row">
-                <label for="gp-led1">LED 1 핀</label>
-                <input type="number" id="gp-led1" min="0" max="39" placeholder="18">
+            <div class="grid">
+                <div class="stat">
+                    <div class="lbl">유량</div>
+                    <div class="val stop" id="fs">-</div>
+                </div>
+                <div class="stat">
+                    <div class="lbl">펄스/초</div>
+                    <div class="val" id="ps">-</div>
+                </div>
+                <div class="stat">
+                    <div class="lbl">누적 펄스</div>
+                    <div class="val" id="pa">-</div>
+                </div>
+                <div class="stat">
+                    <div class="lbl">사용량 (L)</div>
+                    <div class="val" id="vl">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>릴레이 제어</h2>
+            <button class="btn btn-blue" id="relay-btn" onclick="toggleRelay()">열기</button>
+        </div>
+
+        <div class="card">
+            <h2>자동 절수 설정</h2>
+            <div class="ck">
+                <input type="checkbox" id="aoe">
+                <label for="aoe">자동 절수 활성화</label>
             </div>
             <div class="row">
-                <label for="gp-led2">LED 2 핀</label>
-                <input type="number" id="gp-led2" min="0" max="39" placeholder="19">
+                <label for="aot">절수 시간 (초)</label>
+                <input type="number" id="aot" min="1" max="3600" placeholder="5">
+            </div>
+            <button class="btn btn-green" onclick="saveAO()">즉시 적용</button>
+        </div>
+
+        <div class="card">
+            <h2>이벤트 로그</h2>
+            <div class="log" id="log"></div>
+        </div>
+
+    </div>
+
+    <!-- ── 하드웨어 설정 ───────────────────────────────────────── -->
+    <div class="tab-panel" data-tab="hardware">
+
+        <div class="card">
+            <h2>GPIO 핀 설정 <small>(저장 시 재시작)</small></h2>
+            <div class="grid">
+                <div class="row">
+                    <label for="gp-relay">릴레이 핀</label>
+                    <input type="number" id="gp-relay" min="0" max="39" placeholder="16">
+                </div>
+                <div class="row">
+                    <label for="gp-led1">LED 1 핀</label>
+                    <input type="number" id="gp-led1" min="0" max="39" placeholder="18">
+                </div>
+                <div class="row">
+                    <label for="gp-led2">LED 2 핀</label>
+                    <input type="number" id="gp-led2" min="0" max="39" placeholder="19">
+                </div>
+                <div class="row">
+                    <label for="gp-flow">유량센서 핀</label>
+                    <input type="number" id="gp-flow" min="0" max="39" placeholder="4">
+                </div>
+                <div class="row">
+                    <label for="gp-pwm">PWM 핀</label>
+                    <input type="number" id="gp-pwm" min="0" max="39" placeholder="5">
+                </div>
+            </div>
+            <button class="btn btn-blue" onclick="saveGPIO()">저장 및 재시작</button>
+        </div>
+
+        <div class="card">
+            <h2>기타 설정 <small>(즉시 적용)</small></h2>
+            <div class="row">
+                <label for="ms-relay">릴레이 토글 시간 (ms)</label>
+                <input type="number" id="ms-relay" min="1" max="5000" placeholder="100">
             </div>
             <div class="row">
-                <label for="gp-flow">유량센서 핀</label>
-                <input type="number" id="gp-flow" min="0" max="39" placeholder="4">
+                <label for="ms-ppl">유량센서 펄스/리터</label>
+                <input type="number" id="ms-ppl" min="1" max="9999" placeholder="660">
             </div>
             <div class="row">
-                <label for="gp-pwm">PWM 핀</label>
-                <input type="number" id="gp-pwm" min="0" max="39" placeholder="5">
+                <label for="ms-disp">디스플레이 I2C 주소 (hex)</label>
+                <input type="text" id="ms-disp" placeholder="0x70">
+            </div>
+            <button class="btn btn-green" onclick="saveMisc()">즉시 적용</button>
+        </div>
+
+    </div>
+
+    <!-- ── 와이파이 설정 ───────────────────────────────────────── -->
+    <div class="tab-panel" data-tab="wifi">
+
+        <div class="card">
+            <h2>WiFi 설정</h2>
+            <div class="wifi-status">
+                <span class="dot" id="wd"></span>
+                <span id="wifi-ssid-lbl">연결 안됨</span>
+                <span class="wifi-ip" id="wifi-ip-lbl"></span>
+            </div>
+            <button class="btn btn-blue" id="scan-btn" onclick="scanWifi()">AP 검색</button>
+            <div class="ap-list" id="ap-list" style="display:none"></div>
+            <div class="row" style="margin-top:10px">
+                <label for="wifi-ssid-in">SSID</label>
+                <input type="text" id="wifi-ssid-in" placeholder="네트워크 이름">
+            </div>
+            <div class="row">
+                <label for="wifi-pass-in">비밀번호</label>
+                <input type="password" id="wifi-pass-in" placeholder="(빈칸 = 개방형 네트워크)">
+            </div>
+            <div class="wifi-btn-row">
+                <button class="btn btn-green" style="flex:1" onclick="connectWifi()">연결</button>
+                <button class="btn btn-gray"  style="flex:1" onclick="forgetWifi()">연결 해제</button>
             </div>
         </div>
-        <button class="btn btn-blue" onclick="saveGPIO()">저장 및 재시작</button>
+
     </div>
 
-    <div class="card">
-        <h2>MQTT 설정 <small>(저장 시 재시작)</small></h2>
-        <div class="row">
-            <label for="mc">클라이언트 ID</label>
-            <input type="text" id="mc" placeholder="esp32-sinkvalve-iot">
-        </div>
-        <div class="row">
-            <label for="mu">브로커 URI</label>
-            <input type="text" id="mu" placeholder="mqtt://192.168.x.x">
-        </div>
-        <div class="row">
-            <label for="mp">포트</label>
-            <input type="number" id="mp" placeholder="1883">
-        </div>
-        <div class="row">
-            <label for="mun">사용자명</label>
-            <input type="text" id="mun">
-        </div>
-        <div class="row">
-            <label for="mpw">비밀번호</label>
-            <input type="text" id="mpw">
-        </div>
-        <button class="btn btn-blue" onclick="saveMQ()">저장 및 재시작</button>
-    </div>
+    <!-- ── MQTT 설정 ───────────────────────────────────────────── -->
+    <div class="tab-panel" data-tab="mqtt">
 
-    <div class="card">
-        <h2>MQTT 토픽 설정 <small>(저장 시 재시작)</small></h2>
-        <div class="row">
-            <label for="tp-pub">발행 토픽</label>
-            <input type="text" id="tp-pub" placeholder="home/hillstate/sinkvalve/state">
+        <div class="card">
+            <h2>MQTT 설정 <small>(저장 시 재시작)</small></h2>
+            <div class="row">
+                <label for="mc">클라이언트 ID</label>
+                <input type="text" id="mc" placeholder="esp32-sinkvalve-iot">
+            </div>
+            <div class="row">
+                <label for="mu">브로커 URI</label>
+                <input type="text" id="mu" placeholder="mqtt://192.168.x.x">
+            </div>
+            <div class="row">
+                <label for="mp">포트</label>
+                <input type="number" id="mp" placeholder="1883">
+            </div>
+            <div class="row">
+                <label for="mun">사용자명</label>
+                <input type="text" id="mun">
+            </div>
+            <div class="row">
+                <label for="mpw">비밀번호</label>
+                <input type="text" id="mpw">
+            </div>
+            <button class="btn btn-blue" onclick="saveMQ()">저장 및 재시작</button>
         </div>
-        <div class="row">
-            <label for="tp-sub">구독 토픽 (명령)</label>
-            <input type="text" id="tp-sub" placeholder="home/hillstate/sinkvalve/command">
-        </div>
-        <div class="row">
-            <label for="tp-ota">OTA 토픽</label>
-            <input type="text" id="tp-ota" placeholder="home/hillstate/sinkvalve/ota">
-        </div>
-        <button class="btn btn-blue" onclick="saveTopics()">저장 및 재시작</button>
-    </div>
 
-    <div class="card">
-        <h2>기타 설정 <small>(즉시 적용)</small></h2>
-        <div class="row">
-            <label for="ms-relay">릴레이 토글 시간 (ms)</label>
-            <input type="number" id="ms-relay" min="1" max="5000" placeholder="100">
+        <div class="card">
+            <h2>MQTT 토픽 설정 <small>(저장 시 재시작)</small></h2>
+            <div class="row">
+                <label for="tp-pub">발행 토픽</label>
+                <input type="text" id="tp-pub" placeholder="home/hillstate/sinkvalve/state">
+            </div>
+            <div class="row">
+                <label for="tp-sub">구독 토픽 (명령)</label>
+                <input type="text" id="tp-sub" placeholder="home/hillstate/sinkvalve/command">
+            </div>
+            <div class="row">
+                <label for="tp-ota">OTA 토픽</label>
+                <input type="text" id="tp-ota" placeholder="home/hillstate/sinkvalve/ota">
+            </div>
+            <button class="btn btn-blue" onclick="saveTopics()">저장 및 재시작</button>
         </div>
-        <div class="row">
-            <label for="ms-ppl">유량센서 펄스/리터</label>
-            <input type="number" id="ms-ppl" min="1" max="9999" placeholder="660">
-        </div>
-        <div class="row">
-            <label for="ms-disp">디스플레이 I2C 주소 (hex)</label>
-            <input type="text" id="ms-disp" placeholder="0x70">
-        </div>
-        <button class="btn btn-green" onclick="saveMisc()">즉시 적용</button>
-    </div>
 
-    <div class="card">
-        <h2>이벤트 로그</h2>
-        <div class="log" id="log"></div>
     </div>
 
     <script src="/app.js"></script>

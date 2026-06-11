@@ -8,6 +8,10 @@ extern "C" {
 
 bool initialize_wifi_provisioning();
 
+bool wifi_get_sta_status(char *ssid_out, char *ip_out);
+void wifi_do_connect(const char *ssid, const char *password);
+void wifi_do_forget();
+
 #ifdef __cplusplus
 }
 #endif
