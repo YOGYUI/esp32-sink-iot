@@ -642,15 +642,7 @@ static esp_err_t h_wifi_connect(httpd_req_t *req) {
 
     const char *password = (cJSON_IsString(pass) && pass->valuestring) ? pass->valuestring : "";
 
-    /* Save credentials to NVS */
-    nvs_handle_t nvs;
-    if (nvs_open(NVS_NAMESPACE_CFG, NVS_READWRITE, &nvs) == ESP_OK) {
-        nvs_set_str(nvs, NVS_KEY_WIFI_SSID, ssid->valuestring);
-        nvs_set_str(nvs, NVS_KEY_WIFI_PASS, password);
-        nvs_commit(nvs);
-        nvs_close(nvs);
-    }
-
+    /* wifi_do_connect() persists credentials to SPIFFS config.json and NVS */
     wifi_do_connect(ssid->valuestring, password);
     cJSON_Delete(obj);
     return send_json(req, "{\"ok\":true}");

@@ -6,12 +6,15 @@
 #include "esp_netif.h"
 #include "esp_log.h"
 #include "nvs.h"
+#include "cJSON.h"
 #include "defines.h"
 #include "module_gpio.h"
 #include "module_mqtt.h"
 #include "module_sntp.h"
 #include "module_webserver.h"
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 static const char *TAG = "WIFI";
 
@@ -19,6 +22,63 @@ static bool g_sta_connected  = false;
 static bool g_auto_reconnect = false;
 static char g_sta_ip[16]     = {};
 static char g_sta_ssid[33]   = {};
+
+#define WIFI_CFG_FILE "/spiffs/config.json"
+
+/* ── SPIFFS config.json helpers ──────────────────────────────────────────── */
+
+static bool spiffs_load_wifi(char *ssid_out, char *pass_out) {
+    FILE *f = fopen(WIFI_CFG_FILE, "r");
+    if (!f) return false;
+
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    rewind(f);
+    char *buf = (char *)malloc(sz + 1);
+    if (!buf) { fclose(f); return false; }
+    fread(buf, 1, sz, f);
+    buf[sz] = '\0';
+    fclose(f);
+
+    cJSON *obj = cJSON_Parse(buf);
+    free(buf);
+    if (!obj) return false;
+
+    bool found = false;
+    const cJSON *js = cJSON_GetObjectItemCaseSensitive(obj, "wifi_ssid");
+    const cJSON *jp = cJSON_GetObjectItemCaseSensitive(obj, "wifi_pass");
+    if (cJSON_IsString(js) && js->valuestring[0]) {
+        strncpy(ssid_out, js->valuestring, 32);
+        ssid_out[32] = '\0';
+        strncpy(pass_out,
+                (cJSON_IsString(jp) && jp->valuestring) ? jp->valuestring : "",
+                64);
+        pass_out[64] = '\0';
+        found = true;
+    }
+    cJSON_Delete(obj);
+    return found;
+}
+
+static void spiffs_save_wifi(const char *ssid, const char *pass) {
+    cJSON *obj = cJSON_CreateObject();
+    if (!obj) return;
+    cJSON_AddStringToObject(obj, "wifi_ssid", ssid ? ssid : "");
+    cJSON_AddStringToObject(obj, "wifi_pass", pass  ? pass  : "");
+    char *json = cJSON_PrintUnformatted(obj);
+    cJSON_Delete(obj);
+    if (!json) return;
+
+    FILE *f = fopen(WIFI_CFG_FILE, "w");
+    if (f) {
+        fputs(json, f);
+        fclose(f);
+        ESP_LOGI(TAG, "WiFi config saved to SPIFFS");
+    } else {
+        ESP_LOGW(TAG, "Failed to open %s for write", WIFI_CFG_FILE);
+    }
+    cJSON_free(json);
+}
 
 /* ── WiFi state callbacks ─────────────────────────────────────────────────── */
 
@@ -78,6 +138,16 @@ bool wifi_get_sta_status(char *ssid_out, char *ip_out) {
 void wifi_do_connect(const char *ssid, const char *password) {
     ESP_LOGI(TAG, "Connecting to SSID: %s", ssid);
 
+    /* Persist credentials to SPIFFS config.json and NVS */
+    spiffs_save_wifi(ssid, password);
+    nvs_handle_t nvs;
+    if (nvs_open(NVS_NAMESPACE_CFG, NVS_READWRITE, &nvs) == ESP_OK) {
+        nvs_set_str(nvs, NVS_KEY_WIFI_SSID, ssid);
+        nvs_set_str(nvs, NVS_KEY_WIFI_PASS, password ? password : "");
+        nvs_commit(nvs);
+        nvs_close(nvs);
+    }
+
     wifi_config_t sta_cfg = {};
     strncpy((char *)sta_cfg.sta.ssid,     ssid,     sizeof(sta_cfg.sta.ssid)     - 1);
     strncpy((char *)sta_cfg.sta.password, password, sizeof(sta_cfg.sta.password) - 1);
@@ -96,6 +166,10 @@ void wifi_do_forget() {
     ESP_LOGI(TAG, "Forgetting WiFi credentials");
     g_auto_reconnect = false;
 
+    /* Clear SPIFFS config.json */
+    spiffs_save_wifi("", "");
+
+    /* Clear NVS */
     nvs_handle_t nvs;
     if (nvs_open(NVS_NAMESPACE_CFG, NVS_READWRITE, &nvs) == ESP_OK) {
         nvs_erase_key(nvs, NVS_KEY_WIFI_SSID);
@@ -151,25 +225,44 @@ bool initialize_wifi_provisioning() {
 
     ESP_LOGI(TAG, "SoftAP: SSID=%s PW=%s  (192.168.4.1)", ap_ssid, PROV_SOFTAP_PASSWD);
 
-    /* Web server starts immediately — accessible via SoftAP before WiFi connects */
+    /* Web server starts immediately — mounts SPIFFS, accessible via SoftAP */
     initialize_webserver();
 
-    /* Load saved WiFi credentials and connect */
+    /* Load WiFi credentials: SPIFFS config.json first, then NVS fallback */
     char saved_ssid[33] = {};
     char saved_pass[65] = {};
-    nvs_handle_t nvs;
-    if (nvs_open(NVS_NAMESPACE_CFG, NVS_READONLY, &nvs) == ESP_OK) {
-        size_t len;
-        len = sizeof(saved_ssid);
-        nvs_get_str(nvs, NVS_KEY_WIFI_SSID, saved_ssid, &len);
-        len = sizeof(saved_pass);
-        nvs_get_str(nvs, NVS_KEY_WIFI_PASS, saved_pass, &len);
-        nvs_close(nvs);
+
+    if (spiffs_load_wifi(saved_ssid, saved_pass)) {
+        ESP_LOGI(TAG, "WiFi credentials loaded from SPIFFS config.json (%s)", saved_ssid);
+    } else {
+        /* NVS fallback — migrate to SPIFFS if found */
+        nvs_handle_t nvs;
+        if (nvs_open(NVS_NAMESPACE_CFG, NVS_READONLY, &nvs) == ESP_OK) {
+            size_t len;
+            len = sizeof(saved_ssid);
+            nvs_get_str(nvs, NVS_KEY_WIFI_SSID, saved_ssid, &len);
+            len = sizeof(saved_pass);
+            nvs_get_str(nvs, NVS_KEY_WIFI_PASS, saved_pass, &len);
+            nvs_close(nvs);
+        }
+        if (saved_ssid[0]) {
+            ESP_LOGI(TAG, "WiFi credentials migrated from NVS → SPIFFS (%s)", saved_ssid);
+            spiffs_save_wifi(saved_ssid, saved_pass);
+        }
     }
 
     if (saved_ssid[0]) {
         ESP_LOGI(TAG, "Saved WiFi found (%s), connecting...", saved_ssid);
-        wifi_do_connect(saved_ssid, saved_pass);
+        /* Connect without re-saving (credentials already persisted above) */
+        wifi_config_t sta_cfg = {};
+        strncpy((char *)sta_cfg.sta.ssid,     saved_ssid, sizeof(sta_cfg.sta.ssid)     - 1);
+        strncpy((char *)sta_cfg.sta.password, saved_pass, sizeof(sta_cfg.sta.password) - 1);
+        sta_cfg.sta.threshold.authmode = saved_pass[0] ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
+        sta_cfg.sta.pmf_cfg.capable  = true;
+        sta_cfg.sta.pmf_cfg.required = false;
+        g_auto_reconnect = true;
+        esp_wifi_set_config(WIFI_IF_STA, &sta_cfg);
+        esp_wifi_connect();
     } else {
         ESP_LOGI(TAG, "No saved WiFi. Open browser → http://192.168.4.1 to configure.");
     }

@@ -35,13 +35,46 @@ Core ESP Components
 - GPIO
 - Wi-Fi
 - MQTT
-- BLE (Wi-Fi Provisioning)
+- Wi-Fi Provisioning (웹 기반 SoftAP)
 - Pulse Counter
 - PWM
 - Timer
 - I2C
 - SNTP
 - OTA (not yet implemented)
+
+Wi-Fi 설정
+---
+
+### 방법 1 — 플래시 전 `config.json` 미리 작성 (권장)
+
+`main/web/config.json` 파일에 접속할 AP 정보를 입력한 뒤 펌웨어를 플래시하면,
+부팅 즉시 해당 네트워크로 자동 연결된다.
+
+```json
+{
+    "wifi_ssid": "MyNetwork",
+    "wifi_pass": "password123"
+}
+```
+
+### 방법 2 — 웹 대시보드에서 설정
+
+`config.json`이 없거나 SSID가 비어 있으면 SoftAP 모드로 동작한다.
+
+1. 스마트폰/PC에서 `YOGYUI_SINKVALVE_XXXXXX` AP에 접속 (비밀번호: `12345678`)
+2. 브라우저에서 `http://192.168.4.1` 접속
+3. **와이파이 설정** 탭 → AP 검색 → SSID·비밀번호 입력 후 연결
+
+웹 UI로 연결에 성공하면 `/spiffs/config.json`이 자동으로 갱신되어 이후 재부팅 시에도 자동 연결된다.
+
+### 자격증명 저장 우선순위 (부팅 시)
+
+```
+SPIFFS config.json → NVS (이전 버전 호환) → SoftAP 모드
+```
+
+NVS에만 저장된 기존 디바이스는 첫 부팅 시 자동으로 `config.json`으로 마이그레이션된다.
 
 MQTT Commands
 ---

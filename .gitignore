@@ -4,3 +4,4 @@
 /cmake-build-*/
 test/node_modules/
 sdkconfig
+main/web/config.json
