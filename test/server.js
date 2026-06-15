@@ -334,6 +334,16 @@ async function route(req, res) {
         return;
     }
 
+    // POST /api/_sim/restart  (dev-only: simulate restart broadcast)
+    if (meth === 'POST' && urlPath === '/api/_sim/restart') {
+        log('[SIM]', 'Broadcasting restart notice', 'yellow');
+        wss.clients.forEach(ws => {
+            if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'restart' }));
+        });
+        sendJson({ ok: true });
+        return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
 }

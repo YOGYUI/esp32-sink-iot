@@ -176,10 +176,10 @@ static void mqtt_event_handler(void* arg, esp_event_base_t base, int32_t evt_id,
             mqtt_publish_current_state();
             break;
         case MQTT_EVENT_DISCONNECTED:
-            ESP_LOGE(TAG, "Disconnected, Try to reconnect");
-            esp_mqtt_client_reconnect(client);
+            ESP_LOGE(TAG, "Disconnected");
             if (is_valid_connection) {
-
+                ESP_LOGI(TAG, "Try to reconnect");
+                esp_mqtt_client_reconnect(client);
             }
             break;
         case MQTT_EVENT_SUBSCRIBED:

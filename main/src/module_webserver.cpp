@@ -370,7 +370,11 @@ static esp_err_t h_config_gpio_post(httpd_req_t *req) {
 }
 
 static void restart_task(void *) {
-    vTaskDelay(500 / portTICK_PERIOD_MS);
+    char *payload = strdup("{\"type\":\"restart\"}");
+    if (payload && g_server) {
+        httpd_queue_work(g_server, ws_broadcast_work, payload);
+    }
+    vTaskDelay(1500 / portTICK_PERIOD_MS);
     esp_restart();
 }
 

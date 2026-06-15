@@ -58,6 +58,8 @@ function connectWS() {
                 updateWifiStatus(d);
                 if (d.connected) addLog('WiFi 연결됨: ' + d.ssid + ' (' + d.ip + ')', 'lf');
                 else             addLog('WiFi 연결 해제됨', 'ls');
+            } else if (d.type === 'restart') {
+                showRestartOverlay();
             }
         } catch (_) {}
     };
@@ -345,6 +347,19 @@ setInterval(async () => {
         updateStatus(d);
     } catch (_) {}
 }, 5000);
+
+/* ── Restart overlay + auto-reload ──────────────────────────────────────── */
+function showRestartOverlay() {
+    document.getElementById('restart-overlay').style.display = 'flex';
+    addLog('재시작 중...', 'ls');
+    const poll = setInterval(async () => {
+        try {
+            await fetch('/api/status');
+            clearInterval(poll);
+            location.reload();
+        } catch (_) {}
+    }, 2000);
+}
 
 /* ── Tab switching ───────────────────────────────────────────────────────── */
 function switchTab(name) {
