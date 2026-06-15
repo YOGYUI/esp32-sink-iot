@@ -22,10 +22,16 @@
 
         <div class="card">
             <h2><span class="dot" id="wsd"></span>실시간 상태</h2>
-            <div class="wifi-badge" id="wifi-badge">
-                <span class="dot" id="wd-s"></span>
-                <span id="wifi-badge-ssid">WiFi 연결 안됨</span>
-                <span class="wifi-badge-ip" id="wifi-badge-ip"></span>
+            <div class="conn-badges">
+                <div class="wifi-badge">
+                    <span class="dot" id="wd-s"></span>
+                    <span id="wifi-badge-ssid">WiFi 연결 안됨</span>
+                    <span class="wifi-badge-ip" id="wifi-badge-ip"></span>
+                </div>
+                <div class="wifi-badge">
+                    <span class="dot" id="mqtt-dot-s"></span>
+                    <span id="mqtt-badge-lbl">MQTT 연결 안됨</span>
+                </div>
             </div>
             <div class="grid">
                 <div class="stat">
@@ -155,10 +161,6 @@
         <div class="card">
             <h2>MQTT 설정 <small>(저장 시 재시작)</small></h2>
             <div class="row">
-                <label for="mc">클라이언트 ID</label>
-                <input type="text" id="mc" placeholder="esp32-sinkvalve-iot">
-            </div>
-            <div class="row">
                 <label for="mu">브로커 URI</label>
                 <input type="text" id="mu" placeholder="mqtt://192.168.x.x">
             </div>
@@ -173,6 +175,10 @@
             <div class="row">
                 <label for="mpw">비밀번호</label>
                 <input type="text" id="mpw">
+            </div>
+            <div class="row">
+                <label for="mc">클라이언트 ID</label>
+                <input type="text" id="mc" placeholder="esp32-sinkvalve-iot">
             </div>
             <button class="btn btn-blue" onclick="saveMQ()">저장 및 재시작</button>
         </div>

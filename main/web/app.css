@@ -190,6 +190,18 @@ h1 {
 .le.ls      { color: #f43f5e; }
 .le.lerr    { color: #fb923c; }
 
+/* ── Connection badges (기기 현재 상태 탭) ───── */
+.conn-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.conn-badges .wifi-badge {
+    margin-bottom: 0;
+}
+
 /* ── WiFi status badge (기기 현재 상태 탭) ───── */
 .wifi-badge {
     display: flex;

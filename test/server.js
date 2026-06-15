@@ -64,6 +64,10 @@ const wifiState = {
     ip:   '192.168.1.100',
 };
 
+const mqttState = {
+    connected: true,
+};
+
 const mockAPs = [
     { ssid: 'HomeNetwork',  rssi: -42, auth: 3 },
     { ssid: 'Neighbor_5G',  rssi: -65, auth: 3 },
@@ -119,11 +123,15 @@ function log(tag, msg, color = 'gray') {
 // ── Build status payload ───────────────────────────────────────────────────
 function statusPayload(withType = false) {
     const obj = {
-        flow_active:   sensor.flow_active,
-        pulse_per_sec: sensor.pulse_per_sec,
-        pulse_accum:   sensor.pulse_accum,
-        flow_rate:     sensor.pulse_per_sec / 660,
-        volume:        sensor.pulse_accum / 660,
+        flow_active:    sensor.flow_active,
+        pulse_per_sec:  sensor.pulse_per_sec,
+        pulse_accum:    sensor.pulse_accum,
+        flow_rate:      sensor.pulse_per_sec / 660,
+        volume:         sensor.pulse_accum / 660,
+        wifi_connected: wifiState.connected,
+        wifi_ssid:      wifiState.ssid,
+        wifi_ip:        wifiState.ip,
+        mqtt_connected: mqttState.connected,
     };
     if (withType) obj.type = 'status';
     return obj;

@@ -21,6 +21,7 @@ static uint16_t s_mqtt_port;
 static char s_topic_pub[128];
 static char s_topic_sub[128];
 static char s_topic_ota[128];
+static bool is_valid_connection = false;
 
 static void load_mqtt_config() {
     strncpy(s_mqtt_uri, DEFAULT_MQTT_BROKER_URI, sizeof(s_mqtt_uri) - 1);
@@ -170,12 +171,16 @@ static void mqtt_event_handler(void* arg, esp_event_base_t base, int32_t evt_id,
     switch (event_id) {
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(TAG, "Connected");
+            is_valid_connection = true;
             subscribe_topics();
             mqtt_publish_current_state();
             break;
         case MQTT_EVENT_DISCONNECTED:
             ESP_LOGE(TAG, "Disconnected, Try to reconnect");
             esp_mqtt_client_reconnect(client);
+            if (is_valid_connection) {
+
+            }
             break;
         case MQTT_EVENT_SUBSCRIBED:
             ESP_LOGI(TAG, "subscribe event, msg_id=%d", event->msg_id);
@@ -201,6 +206,10 @@ static void mqtt_event_handler(void* arg, esp_event_base_t base, int32_t evt_id,
             ESP_LOGI(TAG, "Unhandled Event ID - %d", event_id);
             break;
     }
+}
+
+bool mqtt_is_connected() { 
+    return is_valid_connection; 
 }
 
 bool initialize_mqtt() {

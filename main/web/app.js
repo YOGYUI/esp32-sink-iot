@@ -24,6 +24,16 @@ function updateStatus(d) {
     document.getElementById('pa').textContent = d.pulse_accum;
     document.getElementById('vl').textContent = (d.pulse_accum / PULSE_PER_LITER).toFixed(3);
     document.getElementById('relay-btn').textContent = d.flow_active ? '닫기' : '열기';
+
+    if (d.wifi_connected !== undefined) {
+        document.getElementById('wd-s').className     = d.wifi_connected ? 'dot on' : 'dot';
+        document.getElementById('wifi-badge-ssid').textContent = d.wifi_connected ? d.wifi_ssid : 'WiFi 연결 안됨';
+        document.getElementById('wifi-badge-ip').textContent   = d.wifi_connected ? d.wifi_ip   : '';
+    }
+    if (d.mqtt_connected !== undefined) {
+        document.getElementById('mqtt-dot-s').className  = d.mqtt_connected ? 'dot on' : 'dot';
+        document.getElementById('mqtt-badge-lbl').textContent = d.mqtt_connected ? 'MQTT 연결됨' : 'MQTT 연결 안됨';
+    }
 }
 
 /* ── WebSocket ──────────────────────────────────────────────────────────── */

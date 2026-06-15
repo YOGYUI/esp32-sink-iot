@@ -8,6 +8,7 @@
 #include "nvs.h"
 #include "defines.h"
 #include "module_gpio.h"
+#include "module_mqtt.h"
 #include "module_wifi_provisioning.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -168,6 +169,12 @@ static cJSON *make_status_json() {
         (double)flow_sensor->pulse_count_per_sec / misc_cfg->flow_pulse_per_liter);
     cJSON_AddNumberToObject(obj, "volume",
         (double)flow_sensor->pulse_count_accum / misc_cfg->flow_pulse_per_liter);
+    char ssid[33] = {}, ip[16] = {};
+    bool wifi_conn = wifi_get_sta_status(ssid, ip);
+    cJSON_AddBoolToObject(obj, "wifi_connected",  wifi_conn);
+    cJSON_AddStringToObject(obj, "wifi_ssid",     ssid);
+    cJSON_AddStringToObject(obj, "wifi_ip",       ip);
+    cJSON_AddBoolToObject(obj, "mqtt_connected",  mqtt_is_connected());
     return obj;
 }
 
