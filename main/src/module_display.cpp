@@ -121,7 +121,7 @@ static const uint16_t alphafonttable[] = {
 };
 
 bool i2c_write(uint8_t* buffer, size_t buffer_len) {
-    if (i2c_master_write_to_device((i2c_port_t)0, LED_DISPLAY_SLAVE_ADDR, buffer, buffer_len, 1000 / portTICK_PERIOD_MS) != ESP_OK) {
+    if (i2c_master_write_to_device((i2c_port_t)0, misc_cfg->display_slave_addr, buffer, buffer_len, 1000 / portTICK_PERIOD_MS) != ESP_OK) {
         // ESP_LOGE(TAG, "Failed to write i2c data");
         return false;
     }

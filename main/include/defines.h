@@ -7,31 +7,89 @@
 #define ON      1
 #define OFF     0
 
-/* define GPIO Pin Numbers */
-#define GPIO_PIN_RELAY                  16
-#define GPIO_PIN_LED_1                  18
-#define GPIO_PIN_LED_2                  19
-#define GPIO_PIN_FLOW_SENSOR            4
-#define GPIO_PIN_PWM_TEST               5
+/* define default GPIO Pin Numbers */
+#define DEFAULT_GPIO_PIN_RELAY          16
+#define DEFAULT_GPIO_PIN_LED_1          18
+#define DEFAULT_GPIO_PIN_LED_2          19
+#define DEFAULT_GPIO_PIN_FLOW_SENSOR    4
+#define DEFAULT_GPIO_PIN_PWM_TEST       5
 
-/* define MQTT broker info  */
-#define MQTT_BROKER_URI                 "mqtt://{mqtt broker host address}"
-#define MQTT_BROKER_PORT                1883
-#define MQTT_BROKER_USERNAME            "{mqtt broker id}"
-#define MQTT_BROKER_PASSWORD            "{mqtt broker password}"
-#define MQTT_BROKER_CLIENT_ID           "esp32-sink-iot"
+/* define default MQTT broker info  */
+#define DEFAULT_MQTT_BROKER_URI         "mqtt://127.0.0.1"
+#define DEFAULT_MQTT_BROKER_PORT        1883
+#define DEFAULT_MQTT_BROKER_USERNAME    "username"
+#define DEFAULT_MQTT_BROKER_PASSWORD    "password"
+#define DEFAULT_MQTT_BROKER_CLIENT_ID   "esp32-sinkvalve-iot"
 
-#define MQTT_PUBLISH_TOPIC_DEVICE       "home/hillstate/sinkvalve/state"
-#define MQTT_SUBSCRIBE_TOPIC_DEVICE     "home/hillstate/sinkvalve/command"
-#define MQTT_SUBSCRIBE_TOPIC_OTA        "home/hillstate/sinkvalve/ota"
+/* define default MQTT topics */
+#define DEFAULT_MQTT_PUBLISH_TOPIC_DEVICE   "home/hillstate/sinkvalve/state"
+#define DEFAULT_MQTT_SUBSCRIBE_TOPIC_DEVICE "home/hillstate/sinkvalve/command"
+#define DEFAULT_MQTT_SUBSCRIBE_TOPIC_OTA    "home/hillstate/sinkvalve/ota"
 
-/* define misc parameters */
-#define RELAY_TOGGLE_INTERVAL_MS        100
-#define LED_DISPLAY_SLAVE_ADDR          0x70
+/* define default misc parameters */
+#define DEFAULT_RELAY_TOGGLE_MS         100
+#define DEFAULT_LED_DISPLAY_ADDR        0x70
+#define DEFAULT_FLOW_PULSE_PER_LITER    660
+
 #define OTA_FIRMWARE_URL                "ota_url/yogyui-esp32-sink-iot.bin"
-#define BLE_PROV_AP_PREFIX              "YOGYUI_"
-#define BLE_PROV_POP                    "12345678"
-#define FLOW_SENSOR_PULSE_PER_LITER     660         // YF-B2 spec.
+#define PROV_AP_SSID_PREFIX             "YOGYUI_SINKVALVE_"
+#define PROV_POP                        "abcd1234"
+#define PROV_SOFTAP_PASSWD              "12345678"
+
+/* NVS configuration storage */
+#define NVS_NAMESPACE_CFG       "sink_cfg"
+#define NVS_KEY_MQTT_URI        "mqtt_uri"
+#define NVS_KEY_MQTT_PORT       "mqtt_port"
+#define NVS_KEY_MQTT_USER       "mqtt_user"
+#define NVS_KEY_MQTT_PASS       "mqtt_pass"
+#define NVS_KEY_MQTT_CLIENT_ID  "mqtt_client_id"
+#define NVS_KEY_AUTO_OFF_EN     "auto_off_en"
+#define NVS_KEY_AUTO_OFF_TIME   "auto_off_t"
+#define NVS_KEY_GPIO_RELAY      "gpio_relay"
+#define NVS_KEY_GPIO_LED1       "gpio_led1"
+#define NVS_KEY_GPIO_LED2       "gpio_led2"
+#define NVS_KEY_GPIO_FLOW       "gpio_flow"
+#define NVS_KEY_GPIO_PWM        "gpio_pwm"
+#define NVS_KEY_MQTT_TOPIC_PUB  "mqtt_t_pub"
+#define NVS_KEY_MQTT_TOPIC_SUB  "mqtt_t_sub"
+#define NVS_KEY_MQTT_TOPIC_OTA  "mqtt_t_ota"
+#define NVS_KEY_MISC_RELAY_MS   "misc_relay_ms"
+#define NVS_KEY_MISC_FLOW_PPL   "misc_flow_ppl"
+#define NVS_KEY_MISC_DISP_ADDR  "misc_disp_addr"
+#define NVS_KEY_WIFI_SSID       "wifi_ssid"
+#define NVS_KEY_WIFI_PASS       "wifi_pass"
+
+/* GPIO pin configuration (runtime, loaded from NVS on boot) */
+struct StGpioConfig {
+    uint8_t pin_relay;
+    uint8_t pin_led1;
+    uint8_t pin_led2;
+    uint8_t pin_flow;
+    uint8_t pin_pwm;
+
+    StGpioConfig() :
+        pin_relay(DEFAULT_GPIO_PIN_RELAY),
+        pin_led1(DEFAULT_GPIO_PIN_LED_1),
+        pin_led2(DEFAULT_GPIO_PIN_LED_2),
+        pin_flow(DEFAULT_GPIO_PIN_FLOW_SENSOR),
+        pin_pwm(DEFAULT_GPIO_PIN_PWM_TEST) {}
+};
+
+extern StGpioConfig* gpio_cfg;
+
+/* Misc runtime configuration (loaded from NVS on boot) */
+struct StMiscConfig {
+    uint32_t relay_toggle_ms;
+    uint32_t flow_pulse_per_liter;
+    uint8_t  display_slave_addr;
+
+    StMiscConfig() :
+        relay_toggle_ms(DEFAULT_RELAY_TOGGLE_MS),
+        flow_pulse_per_liter(DEFAULT_FLOW_PULSE_PER_LITER),
+        display_slave_addr(DEFAULT_LED_DISPLAY_ADDR) {}
+};
+extern StMiscConfig* misc_cfg;
+void load_misc_config();
 
 /* define flow sensor status class */
 struct StFlowSensor {

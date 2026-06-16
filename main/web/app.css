@@ -1,0 +1,299 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* ── Tab bar ──────────────────────────────────── */
+.tab-bar {
+    display: flex;
+    gap: 4px;
+    background: #1e293b;
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 12px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 8px 2px;
+    border: none;
+    border-radius: 7px;
+    font-size: .68rem;
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+    background: transparent;
+    color: #64748b;
+    transition: background .15s, color .15s;
+    word-break: keep-all;
+}
+
+.tab-btn:hover   { color: #cbd5e1; }
+.tab-btn.active  { background: #38bdf8; color: #0f172a; }
+
+/* ── Tab panels ───────────────────────────────── */
+.tab-panel          { display: none; }
+.tab-panel.active   { display: block; }
+
+body {
+    font-family: sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 16px;
+    max-width: 480px;
+    margin: auto;
+}
+
+h1 {
+    text-align: center;
+    color: #38bdf8;
+    margin-bottom: 16px;
+    font-size: 1.2rem;
+    letter-spacing: .05em;
+}
+
+/* ── Card ─────────────────────────────────────── */
+.card {
+    background: #1e293b;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.card h2 {
+    color: #38bdf8;
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.card h2 small {
+    font-size: .65rem;
+    color: #64748b;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* ── WebSocket indicator dot ──────────────────── */
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #475569;
+    flex-shrink: 0;
+}
+
+.dot.on {
+    background: #22c55e;
+}
+
+/* ── Status grid ──────────────────────────────── */
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.stat {
+    background: #0f172a;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+}
+
+.stat .lbl {
+    font-size: .68rem;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.stat .val {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+.flow { color: #22c55e !important; }
+.stop { color: #f43f5e !important; }
+
+/* ── Buttons ──────────────────────────────────── */
+.btn {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: .875rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: opacity .15s;
+}
+
+.btn:hover { opacity: .85; }
+
+.btn-blue  { background: #3b82f6; color: #fff; }
+.btn-green { background: #22c55e; color: #fff; }
+
+/* ── Form rows ────────────────────────────────── */
+.row {
+    margin-bottom: 10px;
+}
+
+.row label {
+    display: block;
+    font-size: .72rem;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+
+.row input {
+    width: 100%;
+    padding: 7px 10px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-size: .875rem;
+}
+
+.ck {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.ck label {
+    font-size: .875rem;
+    color: #e2e8f0;
+}
+
+/* ── Event log ────────────────────────────────── */
+.log {
+    background: #0f172a;
+    border-radius: 6px;
+    padding: 8px;
+    height: 110px;
+    overflow-y: auto;
+    font-size: .68rem;
+    font-family: monospace;
+    color: #64748b;
+}
+
+.le         { margin-bottom: 2px; }
+.le.lf      { color: #22c55e; }
+.le.ls      { color: #f43f5e; }
+.le.lerr    { color: #fb923c; }
+
+/* ── Connection badges (기기 현재 상태 탭) ───── */
+.conn-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.conn-badges .wifi-badge {
+    margin-bottom: 0;
+}
+
+/* ── WiFi status badge (기기 현재 상태 탭) ───── */
+.wifi-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #0f172a;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+    font-size: .75rem;
+    color: #94a3b8;
+}
+
+.wifi-badge-ip {
+    margin-left: auto;
+    font-family: monospace;
+    font-size: .7rem;
+    color: #64748b;
+}
+
+/* ── WiFi card ────────────────────────────────── */
+.wifi-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: .875rem;
+    color: #e2e8f0;
+}
+
+.wifi-ip {
+    margin-left: auto;
+    font-size: .72rem;
+    color: #64748b;
+    font-family: monospace;
+}
+
+.ap-list {
+    background: #0f172a;
+    border-radius: 6px;
+    margin: 8px 0;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.ap-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    gap: 8px;
+    cursor: pointer;
+    border-bottom: 1px solid #1e293b;
+    font-size: .82rem;
+    transition: background .1s;
+}
+
+.ap-item:last-child { border-bottom: none; }
+.ap-item:hover      { background: #1e293b; }
+
+.ap-item .ap-name   { flex: 1; color: #e2e8f0; }
+.ap-item .ap-rssi   { font-size: .68rem; color: #64748b; font-family: monospace; }
+.ap-item .ap-sig    { font-size: .72rem; color: #38bdf8; letter-spacing: -.05em; }
+.ap-item .ap-lock   { font-size: .72rem; color: #94a3b8; }
+
+.btn-gray { background: #475569; color: #fff; }
+
+/* ── Restart overlay ──────────────────────────────── */
+#restart-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, .92);
+    z-index: 999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.restart-title {
+    color: #38bdf8;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.restart-sub {
+    color: #64748b;
+    font-size: .78rem;
+}
+
+.wifi-btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}

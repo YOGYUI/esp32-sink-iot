@@ -10,6 +10,7 @@ bool initialize_mqtt();
 bool start_mqtt();
 bool stop_mqtt();
 bool mqtt_publish_current_state();
+bool mqtt_is_connected();
 
 #ifdef __cplusplus
 }

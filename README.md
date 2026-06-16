@@ -11,16 +11,6 @@ HW/SW Restrictions
 2. 유량계: Seeed Studio [YF-B2](https://www.seeedstudio.com/Water-Flow-Sensor-YF-B2-p-2879.html)
 3. 개발환경: [ESP-IDF v5.1.2](https://docs.espressif.com/projects/esp-idf/en/v5.1.2/esp32/get-started/index.html) + Visual Studio Code
 
-⚠MQTT broker 정보는 [defines.h](https://github.com/YOGYUI/esp32-sink-iot/blob/main/main/include/defines.h) 
-에 하드코딩되어 있다. 적절한 값으로 바꾼 후 빌드 및 플래시해야 한다. ️⚠️<br>
-(파라미터화 및 외부 앱을 통한 변경 기능 추가 계획 없음)
-```c
-#define MQTT_BROKER_URI         "mqtt://broker_address"
-#define MQTT_BROKER_PORT        1883
-#define MQTT_BROKER_USERNAME    "broker_auth_id"
-#define MQTT_BROKER_PASSWORD    "broker_auth_password"
-```
-
 Board Schematics
 ---
 ![schematics.png](./resource/schematics.png) <br><br>
@@ -45,7 +35,7 @@ Core ESP Components
 - GPIO
 - Wi-Fi
 - MQTT
-- BLE (Wi-Fi Provisioning)
+- Wi-Fi Provisioning (웹 기반 SoftAP)
 - Pulse Counter
 - PWM
 - Timer
@@ -53,14 +43,42 @@ Core ESP Components
 - SNTP
 - OTA (not yet implemented)
 
+Wi-Fi 설정
+---
+
+### 방법 1 — 플래시 전 `config.json` 미리 작성 (권장)
+
+`main/web/config.json` 파일에 접속할 AP 정보를 입력한 뒤 펌웨어를 플래시하면,
+부팅 즉시 해당 네트워크로 자동 연결된다.
+
+```json
+{
+    "wifi_ssid": "MyNetwork",
+    "wifi_pass": "password123"
+}
+```
+
+### 방법 2 — 웹 대시보드에서 설정
+
+`config.json`이 없거나 SSID가 비어 있으면 SoftAP 모드로 동작한다.
+
+1. 스마트폰/PC에서 `YOGYUI_SINKVALVE_XXXXXX` AP에 접속 (비밀번호: `12345678`)
+2. 브라우저에서 `http://192.168.4.1` 접속
+3. **와이파이 설정** 탭 → AP 검색 → SSID·비밀번호 입력 후 연결
+
+웹 UI로 연결에 성공하면 `/spiffs/config.json`이 자동으로 갱신되어 이후 재부팅 시에도 자동 연결된다.
+
+### 자격증명 저장 우선순위 (부팅 시)
+
+```
+SPIFFS config.json → NVS (이전 버전 호환) → SoftAP 모드
+```
+
+NVS에만 저장된 기존 디바이스는 첫 부팅 시 자동으로 `config.json`으로 마이그레이션된다.
+
 MQTT Commands
 ---
-publish, subscribe를 위한 topic은 모두 [defines.h](https://github.com/YOGYUI/esp32-sink-iot/blob/main/main/include/defines.h) 
-에 정의되어 있다.
-```c
-#define MQTT_PUBLISH_TOPIC_DEVICE       "home/hillstate/sinkvalve/state"
-#define MQTT_SUBSCRIBE_TOPIC_DEVICE     "home/hillstate/sinkvalve/command"
-```
+
 명령 payload는 다음과 같은 json 구조를 가진다
  ```json
 {
